@@ -2,6 +2,7 @@
 #include "../utils/utils.h"
 #include "stdio.h"
 #include <time.h>
+#include "../../App.h"
 
 extern App app;
 
@@ -12,8 +13,7 @@ log_level get_min_log_level(void) {
 }
 
 void g_log(log_level level, status_code status, const char *str, ...) {
-  // TODO migrate to use app.min_log_level
-  // if (level < app.min_log_level) return;
+  if (level < app.min_log_level) return;
 
   time_t clk = time(NULL);
 

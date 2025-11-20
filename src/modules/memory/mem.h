@@ -1,6 +1,7 @@
 #ifndef _MEMORY
 #define _MEMORY
 
+#include "../../defines.h"
 #include "semaphore.h"
 
 #define MB 1048576
@@ -21,7 +22,7 @@ typedef struct __page_table {
   u32 free_page_num;
   u32 *free_stack;
   u32 free_stack_top;
-  mem_page *pages;
+  page *pages;
 } page_table;
 
 typedef struct __memory {

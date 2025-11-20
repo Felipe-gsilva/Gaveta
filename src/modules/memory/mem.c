@@ -1,5 +1,6 @@
 #include "mem.h"
 #include "../log/log.h"
+#include "../../App.h"
 
 extern App app;
 
@@ -20,7 +21,7 @@ void init_mem(u32 mem_size) {
   }
 
   mem->pt.len = mem_size / PAGE_SIZE;
-  mem->pt.pages = malloc(sizeof(mem_page) * mem->pt.len);
+  mem->pt.pages = malloc(sizeof(page) * mem->pt.len);
   mem->pt.free_stack = malloc(sizeof(u32) * mem->pt.len);
   mem->pt.free_stack_top = 0;
   mem->pt.free_page_num = mem->pt.len;
@@ -67,10 +68,10 @@ void *g_alloc(u32 bytes) {
   if (bytes == 0)
     return NULL;
 
-  u32 num_pages = (bytes + sizeof(allog_header) + PAGE_SIZE - 1) / PAGE_SIZE;
+  u32 num_pages = (bytes + sizeof(alloc_header) + PAGE_SIZE - 1) / PAGE_SIZE;
 
   if (bytes >= app.mem->size) {
-    g_error(MEM_ALLOg_FAIL,
+    g_error(MEM_ALLOC_FAIL,
             "greater chunk of memory than physical memory holds");
     return NULL;
   }
@@ -121,7 +122,7 @@ void *g_alloc(u32 bytes) {
       app.mem->pt.pages[j].free = false;
       app.mem->pt.pages[j].used = true;
     }
-    allog_header* h_ptr = ptr;
+    alloc_header* h_ptr = ptr;
     h_ptr->id = i;
     h_ptr->page_num = num_pages;
     break;
@@ -137,34 +138,34 @@ void *g_alloc(u32 bytes) {
 
   sem_post(&app.mem->memory_s);
   g_debug(MEM_STATUS, "Allocated %d pages for %d bytes", num_pages, bytes);
-  return (void *)(char *)ptr + sizeof(allog_header);
+  return (void *)(char *)ptr + sizeof(alloc_header);
 }
 
 void *g_realloc(void *curr_region, u32 bytes) {
   if (!curr_region) {
-    g_error(MEM_REALLOg_FAIL, "NULL pointer passed to realloc");
+    g_error(MEM_REALLOC_FAIL, "NULL pointer passed to realloc");
     return NULL;
   }
 
-  allog_header *h_ptr = get_header(curr_region);
+  alloc_header *h_ptr = get_header(curr_region);
   if (!h_ptr) {
-    g_error(MEM_REALLOg_FAIL, "No valid header found for memory: %p",
+    g_error(MEM_REALLOC_FAIL, "No valid header found for memory: %p",
             curr_region);
     return NULL;
   }
 
-  u32 old_size = h_ptr->page_num * PAGE_SIZE - sizeof(allog_header);
+  u32 old_size = h_ptr->page_num * PAGE_SIZE - sizeof(alloc_header);
   u32 total_size = old_size + bytes;
 
   void *buffer = g_alloc(total_size);
   if (!buffer) {
-    g_error(MEM_REALLOg_FAIL, "failed to realloc %d + %d bytes", old_size,
+    g_error(MEM_REALLOC_FAIL, "failed to realloc %d + %d bytes", old_size,
             bytes);
     return NULL;
   }
 
   memcpy(buffer, curr_region, old_size);
-  g_dealloc(curr_region);
+  c_dealloc(curr_region);
 
   g_info("region %p reallocated %d to %d bytes", buffer, old_size, bytes);
 
@@ -179,13 +180,13 @@ void push_free_stack(u32 i) {
 void g_dealloc(void *mem) {
   sem_wait(&app.mem->memory_s);
   if (!mem) {
-    g_error(MEM_DEALLOg_FAIL,
+    g_error(MEM_DEALLOC_FAIL,
             "Trying to deallocate a non allocated memory region");
     sem_post(&app.mem->memory_s);
     return;
   }
 
-  allog_header *h_ptr = get_header(mem);
+  alloc_header *h_ptr = get_header(mem);
 
   for (u32 i = h_ptr->id; i < h_ptr->id + h_ptr->page_num; i++) {
     app.mem->pt.pages[i].free = true;
@@ -196,8 +197,8 @@ void g_dealloc(void *mem) {
   sem_post(&app.mem->memory_s);
 }
 
-allog_header *get_header(void *ptr) {
-  return (allog_header *)((char *)ptr - sizeof(allog_header));
+alloc_header *get_header(void *ptr) {
+  return (alloc_header *)((char *)ptr - sizeof(alloc_header));
 }
 
 float retrieve_free_mem_percentage(void) {
@@ -214,31 +215,16 @@ void print_page_table_status() {
   }
 }
 
-void memory_load_req(process *p, u32 bytes) {
-  if (p == NULL) {
-    g_error(MEM_ALLOg_FAIL, "no process allocated for memory load req");
-    return;
-  }
-
-  p->address_space = g_alloc(bytes);
-  memory_load_finish(p);
-}
-
-void memory_load_finish(process *p) {
-  g_info("memory of process (pid=%d) loaded into %p", &p->pid,
-         &p->address_space);
-}
-
 bool is_mem_free(void *ptr) {
   if (!ptr)
     return true;
 
   sem_wait(&app.mem->memory_s);
 
-  allog_header *h_ptr = get_header(ptr);
+  alloc_header *h_ptr = get_header(ptr);
   bool is_free = true;
   for (u32 i = 0; i < h_ptr->page_num; i++) {
-    mem_page *p = (mem_page *)(char *)app.mem->pool + (i * PAGE_SIZE);
+    page *p = (page *)(char *)app.mem->pool + (i * PAGE_SIZE);
     if (!p->free) {
       is_free = false;
       break;
@@ -255,7 +241,7 @@ int second_chance() {
   sem_wait(&app.mem->memory_s);
   do {
     g_info("Page %d", curr);
-    mem_page *p = &app.mem->pt.pages[curr];
+    page *p = &app.mem->pt.pages[curr];
     if (!(p->used)) {
       p->used = false;
       sem_post(&app.mem->memory_s);

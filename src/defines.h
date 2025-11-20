@@ -55,15 +55,12 @@ typedef enum {  // not integrated yet
 
 typedef struct __index_header_record index_header_record;
 typedef struct __data_header_record data_header_record;
-typedef struct __b_tree_buf b_tree_buf;
 typedef struct __io_buf io_buf;
 typedef struct __index_record index_record;
 typedef struct __data_record data_record;
-typedef struct __queue queue;
 typedef struct __key key;
 typedef struct __key_range key_range;
-typedef struct __page mem_page;
-typedef struct __App App;
+typedef struct __disk_page disk_page;
 typedef struct __free_rrn_list free_rrn_list;
 
 
@@ -77,7 +74,7 @@ struct __key_range {
   char end_id[TAMANHO_PLACA];
 };
 
-struct __page {
+struct __disk_page {
   key keys[ORDER - 1];
   u16 rrn;
   u16 children[ORDER];
@@ -87,11 +84,6 @@ struct __page {
   u8 leaf;
 };
 
-struct __queue {
-  queue *next;
-  mem_page *page;
-  u16 counter;
-};
 
 struct __data_record {
   char placa[TAMANHO_PLACA];
@@ -123,12 +115,6 @@ struct __io_buf {
   index_header_record *br;
 };
 
-struct __b_tree_buf {
-  mem_page *root;
-  io_buf *io;
-  queue *q;
-  free_rrn_list *i;
-};
 
 struct __free_rrn_list {
   io_buf *io;
@@ -136,13 +122,5 @@ struct __free_rrn_list {
   u16 n;
 };
 
-struct __App  {
-  io_buf *idx;
-  io_buf *data;
-  b_tree_buf *b;
-  free_rrn_list *ld;
-  bool debug;
-  memory *mem;
-};
 
 #endif

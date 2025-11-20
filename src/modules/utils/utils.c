@@ -1,15 +1,9 @@
 #include "utils.h"
 #include "assert.h"
 #include "stdint.h"
+#include <unistd.h>
 
 void sleep_ms(u32 ms) { usleep(ms * 1000); }
-
-void sleep_ms_with_time(u32 ms, u32 *ts) {
-  for (u32 i = 0; i < ms; i++) {
-    sleep_ms((u32)1);
-    (*ts)--;
-  }
-}
 
 bool valid_int(int v) { return (v > 0 && v < INT32_MAX) ? true : false; }
 

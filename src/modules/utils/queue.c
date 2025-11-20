@@ -1,5 +1,8 @@
 #include "queue.h"
-#include "b-tree-buf.h"
+#include "../../App.h"
+#include "../b-tree/b-tree-buf.h"
+
+extern App app;
 
 queue *alloc_queue(void) {
   queue *root = malloc(sizeof(queue));
@@ -10,7 +13,7 @@ queue *alloc_queue(void) {
   root->next = NULL;
   root->page = NULL;
   root->counter = 0;
-  if (DEBUG)
+  if (app.debug)
     puts("@Allocated queue");
   return root;
 }
@@ -33,7 +36,7 @@ void clear_queue(queue *q) {
   q->next = NULL;
   q->counter = 0;
 
-  if (DEBUG) {
+  if (app.debug) {
     puts("@Queue cleared");
   }
 }
@@ -61,32 +64,32 @@ void print_queue(queue *q) {
 
     printf("Node %d (RRN: %d) Keys: ", node_count, current->page->rrn);
 
-    print_page(current->page);
+    print_disk_page(current->page);
     printf("\n");
 
     current = current->next;
     node_count++;
   }
 
-  if (DEBUG) {
+  if (app.debug) {
     printf("Total nodes in queue: %d\n", node_count);
   }
 }
 
-void push_page(b_tree_buf *b, page *p) {
+void push_disk_page(b_tree_buf *b, disk_page *p) {
   if (!b || !b->q || !p) {
     puts("!!Error: NULL queue pointer or page");
     return;
   }
 
   if (queue_search(b->q, p->rrn)) {
-    if (DEBUG)
+    if (app.debug)
       puts("@Page already in queue");
     return;
   }
 
   if (b->q->counter >= P) {
-    pop_page(b);
+    pop_disk_page(b);
   }
 
   queue *new_node = malloc(sizeof(queue));
@@ -100,36 +103,36 @@ void push_page(b_tree_buf *b, page *p) {
   b->q->next = new_node;
   b->q->counter++;
 
-  if (DEBUG)
+  if (app.debug)
     puts("@Pushed page onto queue");
 }
 
-page *pop_page(b_tree_buf *b) {
+disk_page *pop_disk_page(b_tree_buf *b) {
   if (!b->q || b->q->next == NULL) {
     puts("!!Error: NULL or Empty queue pointer");
     return NULL;
   }
 
   queue *head = b->q->next;
-  page *page = head->page;
+  disk_page *page = head->page;
 
   b->q->next = head->next;
   b->q->counter--;
 
-  if (DEBUG)
+  if (app.debug)
     puts("@Popped from queue");
 
   free(head);
   return page;
 }
-page *queue_search(queue *q, u16 rrn) {
+disk_page *queue_search(queue *q, u16 rrn) {
   if (!q)
     return NULL;
 
   queue *current = q->next;
   while (current) {
     if (current->page && current->page->rrn == rrn) {
-      if (DEBUG) {
+      if (app.debug) {
         printf("@Page with RRN %hu found in queue\n", rrn);
       }
       return current->page;

@@ -1,5 +1,6 @@
 #include "free-rrn-list.h"
 #include "io-buf.h"
+#include "../../App.h"
 
 extern App app;
 

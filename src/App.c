@@ -36,7 +36,7 @@ void get_id(int i, char *placa) {
 void cli() {
   int choice = -1;
   char placa[TAMANHO_PLACA], placa_b[TAMANHO_PLACA];
-  page *p;
+  disk_page *p;
   data_record *d = malloc(sizeof(data_record));
   u16 pos;
   key_range kr;
@@ -62,7 +62,7 @@ void cli() {
         get_id(0, placa);
         p = b_search(app.b, placa, &pos);
         if (p) {
-          print_page(p);
+          print_disk_page(p);
           d = load_data_record(app.data, p->keys[pos].data_register_rrn);
           print_data_record(d);
           break;
@@ -106,7 +106,7 @@ void cli() {
       case 5:
 
         if (app.debug)
-          print_page(app.b->root);
+          print_disk_page(app.b->root);
         break;
       default:
         g_info("Invalid choice.\n");
@@ -120,6 +120,7 @@ void init_app(void) {
   app.data = alloc_io_buf();
   app.b = alloc_tree_buf();
   app.ld = alloc_ilist();
+  app.min_log_level = INFO;
   if (app.idx && app.data) {
     puts("@Allocated APP_BUFFER");
     return;
@@ -140,7 +141,7 @@ void clear_app() {
     clear_io_buf(app.data);
     app.data = NULL;
   }
-  clear_all_pages();
+  clear_all_disk_pages();
   if (app.b) {
     clear_tree_buf(app.b);
     app.b = NULL;
@@ -177,7 +178,7 @@ int main(int argc, char **argv) {
   load_list(app.b->i, app.b->io->br->free_rrn_address);
   load_list(app.ld, app.data->hr->free_rrn_address);
 
-  page *temp = load_page(app.b, app.b->io->br->root_rrn);
+  disk_page *temp = load_disk_page(app.b, app.b->io->br->root_rrn);
   app.b->root = temp;
 
   if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
