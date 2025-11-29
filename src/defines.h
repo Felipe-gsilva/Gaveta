@@ -8,18 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#define ORDER 5
+#include <assert.h>
 
 // in bytes
 #define MAX_ADDRESS 4096
-
-// size data record
-#define TAMANHO_PLACA 8
-#define TAMANHO_MODELO 20
-#define TAMANHO_MARCA 20
-#define TAMANHO_CATEGORIA 15
-#define TAMANHO_STATUS 16
 
 // queue max
 #define P 5 
@@ -34,25 +26,6 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
-typedef enum {
-  BTREE_INSERTED_IN_PAGE = 5,
-  BTREE_NOT_FOUND_KEY = 3,
-  BTREE_FOUND_KEY = 2,
-  BTREE_PROMOTION = 1,
-  BTREE_NO_PROMOTION = 0,
-  BTREE_SUCCESS = 0,
-  BTREE_ERROR_MEMORY = -1,
-  BTREE_ERROR_IO = -2,
-  BTREE_ERROR_DUPLICATE = -3,
-  BTREE_ERROR_INVALID_PAGE = -4,
-  BTREE_ERROR_PAGE_FULL = -5
-} btree_status;
-
-typedef enum {  // not integrated yet
-  IO_SUCCESS = 0,
-  IO_ERROR = -1
-} io_status;
-
 typedef struct __index_header_record index_header_record;
 typedef struct __data_header_record data_header_record;
 typedef struct __io_buf io_buf;
@@ -60,24 +33,23 @@ typedef struct __index_record index_record;
 typedef struct __data_record data_record;
 typedef struct __key key;
 typedef struct __key_range key_range;
-typedef struct __disk_page disk_page;
+typedef struct __btree_node btree_node;
 typedef struct __free_rrn_list free_rrn_list;
-
 
 struct __key {
   u16 data_register_rrn;
-  char id[TAMANHO_PLACA];
+  char *id;
 };
 
 struct __key_range {
-  char start_id[TAMANHO_PLACA];
-  char end_id[TAMANHO_PLACA];
+  char *start_id;
+  char *end_id;
 };
 
-struct __disk_page {
-  key keys[ORDER - 1];
+struct __btree_node {
+  key *keys;
   u16 rrn;
-  u16 children[ORDER];
+  u16 *children;
   u16 next_leaf;
   u8 child_num;
   u8 keys_num;
@@ -86,13 +58,9 @@ struct __disk_page {
 
 
 struct __data_record {
-  char placa[TAMANHO_PLACA];
-  char modelo[TAMANHO_MODELO];
-  char marca[TAMANHO_MARCA];
-  int ano;
-  char categoria[TAMANHO_CATEGORIA];
-  int quilometragem;
-  char status[TAMANHO_STATUS];
+  char *data;
+  char *key;
+  u16 rrn;
 };
 
 struct __data_header_record {

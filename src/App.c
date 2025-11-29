@@ -1,10 +1,4 @@
 #include "App.h"
-#include "modules/log/log.h"
-#include "modules/b-tree/b-tree-buf.h"
-#include "modules/b-tree/free-rrn-list.h"
-#include "modules/b-tree/io-buf.h"
-#include "modules/utils/queue.h"
-#include <assert.h>
 
 App app;
 
@@ -18,25 +12,25 @@ bool set_envvar(const char *mode) {
   return false;
 }
 
-void get_id(int i, char *placa) {
-  assert(strlen(placa) >= 0);
+void get_id(int i, char *first_key) {
+  assert(strlen(first_key) >= 0);
 
   if (i >= 3) {
     puts("Many tries");
     return;
   }
-  puts("Digite a placa");
-  scanf("%s", placa);
-  if (strlen(placa) != 7) {
+  puts("Digite a first_key");
+  scanf("%s", first_key);
+  if (strlen(first_key) != 7) {
     puts("!!Wrong size mate");
-    get_id(i + 1, placa);
+    get_id(i + 1, first_key);
   }
 }
 
 void cli() {
   int choice = -1;
-  char placa[TAMANHO_PLACA], placa_b[TAMANHO_PLACA];
-  disk_page *p;
+  char *first_key, *second_key; // search keys
+  btree_node *p;
   data_record *d = malloc(sizeof(data_record));
   u16 pos;
   key_range kr;
@@ -59,10 +53,10 @@ void cli() {
       case 0:
         return;
       case 1:
-        get_id(0, placa);
-        p = b_search(app.b, placa, &pos);
+        get_id(0, first_key);
+        p = b_search(app.b, first_key, &pos);
         if (p) {
-          print_disk_page(p);
+          print_btree_node(p);
           d = load_data_record(app.data, p->keys[pos].data_register_rrn);
           print_data_record(d);
           break;
@@ -70,27 +64,14 @@ void cli() {
         puts("Page not found!");
         break;
       case 2:
-        get_id(0, placa);
-        get_id(0, placa_b);
-        strcpy(kr.start_id, placa);
-        strcpy(kr.end_id, placa_b);
+        get_id(0, first_key);
+        get_id(0, second_key);
+        strcpy(kr.start_id, first_key);
+        strcpy(kr.end_id, second_key);
         b_range_search(app.b, app.data, &kr);
         break;
       case 3:
-        g_info("Inserindo Veiculo:\n");
-        get_id(0, d->placa);
-        g_info("Modelo:\n");
-        scanf("%s", d->modelo);
-        g_info("Marca:\n");
-        scanf("%s", d->marca);
-        g_info("Ano:\n");
-        scanf("%d", &(d->ano));
-        g_info("Categoria:\n");
-        scanf("%s", d->categoria);
-        g_info("Quilometragem:\n");
-        scanf("%d", &(d->quilometragem));
-        g_info("Status:\n");
-        scanf("%s", d->status);
+        // TODO create function to read data_record from user
 
         u16 rrn = get_free_rrn(app.ld);
         if (rrn == 0 && ftell(app.data->fp) >=
@@ -100,13 +81,13 @@ void cli() {
         d_insert(app.data, d, app.ld, rrn);
         break;
       case 4:
-        get_id(0, placa);
-        b_remove(app.b, app.data, placa);
+        get_id(0, first_key);
+        b_remove(app.b, app.data, first_key);
         break;
       case 5:
 
         if (app.debug)
-          print_disk_page(app.b->root);
+          print_btree_node(app.b->root);
         break;
       default:
         g_info("Invalid choice.\n");
@@ -141,7 +122,7 @@ void clear_app() {
     clear_io_buf(app.data);
     app.data = NULL;
   }
-  clear_all_disk_pages();
+  clear_all_btree_nodes();
   if (app.b) {
     clear_tree_buf(app.b);
     app.b = NULL;
@@ -161,7 +142,7 @@ int main(int argc, char **argv) {
   init_app();
 
   strcpy(index_file, "public/btree-");
-  converted_char = ORDER + '0';
+  converted_char = 0; // convert_int_to_char(n);
   index_file[strlen(index_file)] = converted_char;
   strcat(index_file, ".idx");
   strcpy(data_file, "public/veiculos.dat");
@@ -178,7 +159,7 @@ int main(int argc, char **argv) {
   load_list(app.b->i, app.b->io->br->free_rrn_address);
   load_list(app.ld, app.data->hr->free_rrn_address);
 
-  disk_page *temp = load_disk_page(app.b, app.b->io->br->root_rrn);
+  btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
   app.b->root = temp;
 
   if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
