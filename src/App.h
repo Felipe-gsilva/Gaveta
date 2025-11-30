@@ -5,6 +5,7 @@
 #include "modules/memory/mem.h"
 #include "modules/log/log.h"
 #include "modules/b-tree/b_tree.h"
+#include "modules/utils/utils.h"
 
 typedef struct __App  {
   io_buf *idx;

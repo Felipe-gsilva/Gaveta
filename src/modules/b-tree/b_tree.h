@@ -3,8 +3,10 @@
 
 #include "../../defines.h"
 
+#define ORDER 20 // for now
+
 typedef enum {
-  BTREE_INSERTED_IN_PAGE = 5,
+  BTREE_INSERTED_IN_BTREE_NODE = 5,
   BTREE_NOT_FOUND_KEY = 3,
   BTREE_FOUND_KEY = 2,
   BTREE_PROMOTION = 1,
@@ -13,15 +15,70 @@ typedef enum {
   BTREE_ERROR_MEMORY = -1,
   BTREE_ERROR_IO = -2,
   BTREE_ERROR_DUPLICATE = -3,
-  BTREE_ERROR_INVALID_PAGE = -4,
-  BTREE_ERROR_PAGE_FULL = -5
+  BTREE_ERROR_INVALID_btree_node = -4,
+  BTREE_ERROR_BTREE_NODE_FULL = -5
 } btree_status;
+
+// structs
+typedef struct __key {
+  u16 data_register_rrn;
+  char *id;
+} key;
+
+typedef struct __key_range {
+  key *start_id;
+  key *end_id;
+} key_range;
+
+typedef struct __btree_node {
+key *keys;
+  u16 rrn;
+  u16 *children;
+  u16 next_leaf;
+  u8 child_num;
+  u8 keys_num;
+  u8 leaf;
+}
+btree_node;
 
 typedef struct __queue {
   struct __queue *next;
-  btree_node *page;
+  btree_node *btree_node;
   u16 counter;
 } queue;
+
+typedef struct __data_record {
+  char *data;
+  char *key;
+  u16 rrn;
+} data_record;
+
+typedef struct __data_header_record {
+  u16 header_size;
+  u16 record_size;
+  char *free_rrn_address;
+} data_header_record;
+
+typedef struct __index_header_record {
+  u16 root_rrn;
+  u16 btree_node_size;
+  u16 header_size;
+  char *free_rrn_address;
+} index_header_record;
+
+
+typedef struct __io_buf {
+  char address[MAX_ADDRESS];
+  FILE *fp;
+  data_header_record *hr;
+  index_header_record *br;
+} io_buf;
+
+typedef struct __free_rrn_list {
+  io_buf *io;
+  u16 *free_rrn;
+  u16 n;
+} free_rrn_list;
 
 typedef struct __b_tree_buf {
   btree_node *root;
@@ -30,6 +87,7 @@ typedef struct __b_tree_buf {
   free_rrn_list *i;
 } b_tree_buf;
 
+// procedures
 queue *alloc_queue(void);
 
 void clear_queue(queue *queue);

@@ -48,13 +48,13 @@ void init_mem(u32 mem_size);
 
 void clear_mem();
 
-void *c_alloc(u32 bytes);
+void *g_alloc(u32 bytes);
 
-void *c_realloc(void *curr_region, u32 bytes);
+void *g_realloc(void *curr_region, u32 bytes);
 
 alloc_header *get_header(void *ptr);
 
-void c_dealloc(void *mem);
+void g_dealloc(void *mem);
 
 void push_free_stack(u32 i);
 

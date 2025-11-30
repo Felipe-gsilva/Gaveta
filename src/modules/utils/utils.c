@@ -21,3 +21,7 @@ char *sanitize_str(char *str) {
 
   return str;
 }
+
+char convert_int_to_char(int k) {
+  return (char) k + '0';
+}

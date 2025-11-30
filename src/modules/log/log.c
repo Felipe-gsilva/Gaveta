@@ -17,7 +17,7 @@ void g_log(log_level level, status_code status, const char *str, ...) {
 
   time_t clk = time(NULL);
 
-  printf("\n%-10s", sanitize_str(ctime(&clk) + 11));
+  printf("%-10s", sanitize_str(ctime(&clk) + 11));
   switch (level) {
     case ERROR:
       printf("\033[31;1;4mERROR\033[0m ");

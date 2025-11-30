@@ -5,7 +5,7 @@
 extern App app;
 
 void init_mem(u32 mem_size) {
-  if (mem_size >= 4 * MB) {
+  if (mem_size <= 16 * KB) {
     g_error(MEM_ERROR,
             "Given memory size %d is broken! Setting to default mem size: %",
             mem_size, DEFAULT_MEMORY_SIZE);
@@ -165,7 +165,7 @@ void *g_realloc(void *curr_region, u32 bytes) {
   }
 
   memcpy(buffer, curr_region, old_size);
-  c_dealloc(curr_region);
+  g_dealloc(curr_region);
 
   g_info("region %p reallocated %d to %d bytes", buffer, old_size, bytes);
 
