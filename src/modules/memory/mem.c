@@ -45,7 +45,7 @@ void init_mem(u32 mem_size) {
     g_crit_error(SEMAPHORE_INIT_ERROR, "Memory semaphore failed to initialize")
   }
 
-  g_info("%dB allocated", (int)mem_size);
+  g_info("%dB allocated for the app pool", (int)mem_size);
 }
 
 void clear_mem() {
@@ -64,7 +64,6 @@ void clear_mem() {
 }
 
 void *g_alloc(u32 bytes) {
-  g_info("Allocating %d bytes", bytes);
   if (bytes == 0)
     return NULL;
 
@@ -76,13 +75,13 @@ void *g_alloc(u32 bytes) {
     return NULL;
   }
 
-  g_info("Pages to be allocated: %d | Free pages: %d", num_pages,
+  g_debug(MEM_STATUS, "Pages to be allocated: %d | Free pages: %d", num_pages,
          app.mem->pt.free_page_num);
   if (num_pages > app.mem->pt.free_page_num || num_pages > app.mem->pt.len) {
-    g_info("Not enough memory to allocate %d pages", num_pages);
+    g_warn(MEM_STATUS, "Not enough memory to allocate %d pages", num_pages);
     while (num_pages > app.mem->pt.free_page_num) {
       int not_used_page = second_chance();
-      g_info("Not used page %d", not_used_page);
+      g_debug(MEM_STATUS, "Not used page %d", not_used_page);
       if (not_used_page == -1) {
         g_error(MEM_FULL, "Memory full even after page replacement!");
         sem_post(&app.mem->memory_s);
@@ -113,7 +112,7 @@ void *g_alloc(u32 bytes) {
 
     if (!contiguos_region)
       continue;
-    g_info("Found %d contiguous pages at range %d - %d", num_pages, i,
+    g_debug(MEM_STATUS, "Found %d contiguous pages at range %d - %d", num_pages, i,
            num_pages + i);
     ptr = (void*)((char*)app.mem->pool + (i * PAGE_SIZE));
     app.mem->pt.free_page_num -= num_pages;
@@ -167,7 +166,7 @@ void *g_realloc(void *curr_region, u32 bytes) {
   memcpy(buffer, curr_region, old_size);
   g_dealloc(curr_region);
 
-  g_info("region %p reallocated %d to %d bytes", buffer, old_size, bytes);
+  g_debug(MEM_STATUS, "region %p reallocated %d to %d bytes", buffer, old_size, bytes);
 
   return buffer;
 }
@@ -240,7 +239,7 @@ int second_chance() {
 
   sem_wait(&app.mem->memory_s);
   do {
-    g_info("Page %d", curr);
+    // g_info("Page %d", curr);
     page *p = &app.mem->pt.pages[curr];
     if (!(p->used)) {
       p->used = false;

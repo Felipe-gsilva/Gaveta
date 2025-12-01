@@ -174,8 +174,16 @@ int main(int argc, char **argv) {
   // }
 
   // cli();
-  generic_queue *gq = NULL;
+  generic_queue *gq;
   init_generic_queue(&gq, sizeof(int));
+  push_generic_queue(&gq, (void*)6);
+  print_generic_queue(&gq);
+  push_generic_queue(&gq, (void*)8);
+  print_generic_queue(&gq);
+  pop_generic_queue(&gq, NULL);
+  print_generic_queue(&gq);
+  pop_generic_queue(&gq, NULL);
+  print_generic_queue(&gq);
 
   clear_app();
   return 0;
