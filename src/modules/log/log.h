@@ -34,8 +34,9 @@ typedef enum {
   SEMAPHORE_WAIT_ERROR = 503,
   THREAD_INIT_ERROR = 504,
   INVALID_INPUT = 600,
-  QUEUE_EMPTY = 700,
+  QUEUE_STATUS = 700,
   QUEUE_ERROR = 701,
+  QUEUE_EMPTY = 702,
 } status_code;
 
 // defining correct macros for logging

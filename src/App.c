@@ -1,4 +1,5 @@
 #include "App.h"
+#include "modules/utils/generic_queue.h"
 
 App app;
 
@@ -173,6 +174,8 @@ int main(int argc, char **argv) {
   // }
 
   // cli();
+  generic_queue *gq = NULL;
+  init_generic_queue(&gq, sizeof(int));
 
   clear_app();
   return 0;

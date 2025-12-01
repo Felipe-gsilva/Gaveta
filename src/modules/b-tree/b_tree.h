@@ -88,6 +88,7 @@ typedef struct __b_tree_buf {
 } b_tree_buf;
 
 // procedures
+// queue
 queue *alloc_queue(void);
 
 void clear_queue(queue *queue);
@@ -101,6 +102,7 @@ btree_node *pop_btree_node(b_tree_buf *b);
 btree_node *queue_search(queue *queue, u16 rrn);
 bool is_queue_empty(queue *queue);
 
+// b_tree
 b_tree_buf *alloc_tree_buf(void);
 
 void build_tree(b_tree_buf *b, io_buf *data, int n);

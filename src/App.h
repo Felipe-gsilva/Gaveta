@@ -1,7 +1,6 @@
 #ifndef _APP
 #define _APP
 
-#include "defines.h"
 #include "modules/memory/mem.h"
 #include "modules/log/log.h"
 #include "modules/b-tree/b_tree.h"

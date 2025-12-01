@@ -11,6 +11,6 @@ You will need *cmake* in order to run the code:
 
 cmake -S . -B target/
 cmake --build target/
-./target/regis
+./target/gaveta
 
 ```
