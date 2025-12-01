@@ -10,8 +10,9 @@ typedef enum { DEBUG, INFO, WARN, ERROR, CRIT_ERROR } log_level;
 // Im gonna make this prefix reffers to a system part
 // yet to change
 typedef enum {
-  SCHEDULER_PROCESS_OUT_OF_BOUNDS = 000,
   DEFAULT_STATUS = -100,
+  SCHEDULER_PROCESS_OUT_OF_BOUNDS = 000,
+  APP_ERROR = 001,
   PROCESS_STATUS = 100,
   PROCESS_OUT_OF_LIST = 101,
   PROCESS_CREATION_ERROR = 102,

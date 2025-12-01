@@ -103,13 +103,10 @@ void init_app(void) {
   app.b = alloc_tree_buf();
   app.ld = alloc_ilist();
   app.min_log_level = INFO;
-  if (app.idx && app.data) {
-    puts("@Allocated APP_BUFFER");
+  if (app.idx && app.data)
     return;
-  }
 
-  puts("!!Error while allocating APP_BUFFER");
-  exit(EXIT_FAILURE);
+  g_crit_error(APP_ERROR, "Error while allocating APP_BUFFER");
 }
 
 void clear_app() {
@@ -174,14 +171,20 @@ int main(int argc, char **argv) {
   // }
 
   // cli();
-  generic_queue *gq;
-  init_generic_queue(&gq, sizeof(int));
-  push_generic_queue(&gq, (void*)6);
-  print_generic_queue(&gq);
-  push_generic_queue(&gq, (void*)8);
-  print_generic_queue(&gq);
+  generic_queue *gq = NULL;
+  init_generic_queue(&gq, sizeof(int)); 
+
+  int val1 = 6;
+  int val2 = 8;
+
+  push_generic_queue(&gq, &val1);
+  push_generic_queue(&gq, &val2);
+
+  print_generic_queue(&gq); 
+
   pop_generic_queue(&gq, NULL);
   print_generic_queue(&gq);
+
   pop_generic_queue(&gq, NULL);
   print_generic_queue(&gq);
 

@@ -75,8 +75,6 @@ void *g_alloc(u32 bytes) {
     return NULL;
   }
 
-  g_debug(MEM_STATUS, "Pages to be allocated: %d | Free pages: %d", num_pages,
-         app.mem->pt.free_page_num);
   if (num_pages > app.mem->pt.free_page_num || num_pages > app.mem->pt.len) {
     g_warn(MEM_STATUS, "Not enough memory to allocate %d pages", num_pages);
     while (num_pages > app.mem->pt.free_page_num) {
@@ -112,8 +110,6 @@ void *g_alloc(u32 bytes) {
 
     if (!contiguos_region)
       continue;
-    g_debug(MEM_STATUS, "Found %d contiguous pages at range %d - %d", num_pages, i,
-           num_pages + i);
     ptr = (void*)((char*)app.mem->pool + (i * PAGE_SIZE));
     app.mem->pt.free_page_num -= num_pages;
     for (u32 j = i; j < i + num_pages; j++)
@@ -136,7 +132,7 @@ void *g_alloc(u32 bytes) {
   }
 
   sem_post(&app.mem->memory_s);
-  g_debug(MEM_STATUS, "Allocated %d pages for %d bytes", num_pages, bytes);
+  g_debug(MEM_STATUS, "Allocated %d pages for %d bytes in address %p", num_pages, bytes, ptr);
   return (void *)(char *)ptr + sizeof(alloc_header);
 }
 
