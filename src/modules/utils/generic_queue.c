@@ -2,19 +2,6 @@
 #include "../log/log.h"
 #include "../memory/mem.h"
 
-generic_queue_table gqt;
-
-// TODO
-static void init_gqt() {
-  gqt.capability = 10;
-  gqt.size = 0;
-  gqt.head = g_alloc(sizeof(u32) * gqt.capability);
-  gqt.tail = g_alloc(sizeof(u32) * gqt.capability);
-}
-
-// TODO
-static void insert_gqt(generic_queue **gq) {}
-
 bool is_queue_empty(generic_queue **gq) {
   if (gq && *gq) return false;
   return true;
