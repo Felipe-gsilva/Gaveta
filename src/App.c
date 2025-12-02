@@ -130,45 +130,39 @@ void clear_app() {
 }
 
 int main(int argc, char **argv) {
-  int n = 99;
-  char *index_file = malloc(MAX_ADDRESS);
-  char *data_file = malloc(MAX_ADDRESS);
-  char converted_char;
-
   init_app();
+  int n = ORDER;
+  char *index_file = g_alloc(MAX_ADDRESS), *data_file = g_alloc(MAX_ADDRESS), converted_char;
 
-  // strcpy(index_file, "public/btree-");
-  // converted_char = convert_int_to_char(n);
-  // index_file[strlen(index_file)] = converted_char;
-  // strcat(index_file, ".idx");
-  // strcpy(data_file, "public/veiculos.dat");
+  sprintf(index_file, "public/btree%c%d.idx", '-', n);
+  strcpy(data_file, "public/btree.dat");
 
-  // create_index_file(app.b->io, index_file);
-  // create_data_file(app.data, data_file);
+  create_index_file(app.b->io, index_file);
+  create_data_file(app.data, data_file);
 
-  // load_file(app.b->io, index_file, "index");
-  // load_file(app.data, data_file, "data");
+  load_file(app.b->io, index_file, "index");
+  load_file(app.data, data_file, "data");
 
   free(data_file);
   free(index_file);
 
-  // load_list(app.b->i, app.b->io->br->free_rrn_address);
-  // load_list(app.ld, app.data->hr->free_rrn_address);
+  load_list(app.b->i, app.b->io->br->free_rrn_address);
+  load_list(app.ld, app.data->hr->free_rrn_address);
 
-  // btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
-  // app.b->root = temp;
+  btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
+  app.b->root = temp;
 
-  // if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
-  //   insert_list(app.b->i, 0);
-  //   build_tree(app.b, app.data, n);
+  if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
+    insert_list(app.b->i, 0);
+    build_tree(app.b, app.data, n);
 
-  //   if (app.debug)
-  //     print_queue(app.b->q);
+    if (app.debug)
+      print_queue(app.b->q);
 
-  //   insert_list(app.ld, n + 1);
-  //   app.b->io->br->root_rrn = app.b->root->rrn;
-  //   write_index_header(app.b->io);
-  // }
+    insert_list(app.ld, n + 1);
+    app.b->io->br->root_rrn = app.b->root->rrn;
+    write_index_header(app.b->io);
+  }
 
   // cli();
   generic_queue *gq = NULL;

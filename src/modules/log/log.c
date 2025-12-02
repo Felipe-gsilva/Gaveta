@@ -38,27 +38,33 @@ void g_log(log_level level, status_code status, const char *str, ...) {
       break;
   }
 
-  if ((status / 100) != -1) {
-    printf("| STATUS CODE: ");
-  }
   switch (status / 100) {
     case -1:
       break;
     case 0:
-      printf("%d - SCHEDULER |", status);
+      printf("%d - App status | ", status);
       break;
-    case 1:
-      printf("%d - Process Handling Context | ", status);
-      break;
+    case 1: 
+      printf("%d - Btree Status | ", status);
+      break; 
     case 2:
-      printf("%d - CPU Related Context | ", status);
+      printf("%d - CPU Related | ", status);
       break;
     case 3:
-      printf("%d - Memory Status Context | ", status);
+      printf("%d - Memory Status | ", status);
+      break;
+    case 4: 
+      printf("%d - Disk Status | ", status);
       break;
     case 5:
       printf("%d - User Status Context | ", status);
       break;
+    case 6: 
+      printf("%d - Invalid Input | ", status);
+      break;
+    case 7: 
+      printf("%d - Queue status | ", status);
+      
     default:
       printf("%d - Unknown Status | ", status);
   }

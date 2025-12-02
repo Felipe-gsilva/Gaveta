@@ -11,6 +11,4 @@ u32 abs_diff(u32 a, u32 b);
 
 char *sanitize_str(char *str);
 
-char convert_int_to_char(int k);
-
 #endif

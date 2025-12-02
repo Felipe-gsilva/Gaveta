@@ -16,7 +16,7 @@ queue *alloc_queue(void) {
   root->btree_node = NULL;
   root->counter = 0;
   if (app.debug)
-    puts("@Allocated queue");
+    puts("Allocated queue");
   return root;
 }
 
@@ -39,7 +39,7 @@ void clear_queue(queue *q) {
   q->counter = 0;
 
   if (app.debug) {
-    puts("@Queue cleared");
+    puts("Queue cleared");
   }
 }
 void print_queue(queue *q) {
@@ -86,7 +86,7 @@ void push_btree_node(b_tree_buf *b, btree_node *p) {
 
   if (queue_search(b->q, p->rrn)) {
     if (app.debug)
-      puts("@btree_node already in queue");
+      puts("btree_node already in queue");
     return;
   }
 
@@ -106,7 +106,7 @@ void push_btree_node(b_tree_buf *b, btree_node *p) {
   b->q->counter++;
 
   if (app.debug)
-    puts("@Pushed btree_node onto queue");
+    puts("Pushed btree_node onto queue");
 }
 
 btree_node *pop_btree_node(b_tree_buf *b) {
@@ -122,7 +122,7 @@ btree_node *pop_btree_node(b_tree_buf *b) {
   b->q->counter--;
 
   if (app.debug)
-    puts("@Popped from queue");
+    puts("Popped from queue");
 
   g_dealloc(head);
   return btree_node;
@@ -135,7 +135,7 @@ btree_node *queue_search(queue *q, u16 rrn) {
   while (current) {
     if (current->btree_node && current->btree_node->rrn == rrn) {
       if (app.debug) {
-        printf("@btree_node with RRN %hu found in queue\n", rrn);
+        printf("btree_node with RRN %hu found in queue\n", rrn);
       }
       return current->btree_node;
     }
@@ -178,7 +178,7 @@ b_tree_buf *alloc_tree_buf(void) {
   }
 
   if (app.debug)
-    puts("@Allocated b_tree_buf_BUFFER");
+    puts("Allocated b_tree_buf_BUFFER");
   return b;
 }
 
@@ -197,7 +197,7 @@ void clear_tree_buf(b_tree_buf *b) {
     b = NULL;
   }
   if (app.debug)
-    puts("@B_TREE_BUFFER cleared");
+    puts("B_TREE_BUFFER cleared");
 }
 
 void populate_index_header(index_header_record *bh, const char *file_name) {
@@ -221,7 +221,7 @@ void build_tree(b_tree_buf *b, io_buf *data, int n) {
   if (!b->i) {
     load_list(b->i, b->io->br->free_rrn_address);
     if (b->i && app.debug) {
-      puts("@Loaded rrn list");
+      puts("Loaded rrn list");
     }
   }
   data_record *d;
@@ -244,20 +244,19 @@ void build_tree(b_tree_buf *b, io_buf *data, int n) {
     g_dealloc(d);
 
   if (app.debug) {
-    puts("@Built tree");
+    puts("Built tree");
   }
 }
 
 btree_node *load_btree_node(b_tree_buf *b, u16 rrn) {
   if (!b || !b->io) {
-    puts("!!Error: invalid parameters");
+    g_error(BTREE_ERROR, "Error: invalid parameters");
     return NULL;
   }
 
   btree_node *btree_node = queue_search(b->q, rrn);
   if (btree_node) {
-    if (app.debug)
-      puts("@btree_node found in queue");
+    g_debug(BTREE_STATUS, "Btree_node found in queue");
     return btree_node;
   }
 
@@ -398,7 +397,7 @@ int search_in_btree_node(btree_node *p, key key, int *return_pos) {
     if (app.debug)
       printf("btree_node key id: %s\t key id: %s\n", p->keys[i].id, key.id);
     if (strcmp(p->keys[i].id, key.id) == 0) {
-      puts("@Curr key was found");
+      puts("Curr key was found");
       *return_pos = i;
       return BTREE_FOUND_KEY;
     }
@@ -406,7 +405,7 @@ int search_in_btree_node(btree_node *p, key key, int *return_pos) {
     if (strcmp(p->keys[i].id, key.id) > 0) {
       *return_pos = i;
       if (app.debug)
-        puts("@Curr key is greater than the new one");
+        puts("Curr key is greater than the new one");
       return BTREE_NOT_FOUND_KEY;
     }
   }
@@ -461,7 +460,7 @@ void populate_key(key *k, data_record *d, u16 rrn) {
   k->data_register_rrn = rrn;
 
   if (app.debug) {
-    printf("@Populated key with ID: %s and data RRN: %hu\n", k->id,
+    printf("Populated key with ID: %s and data RRN: %hu\n", k->id,
            k->data_register_rrn);
   }
 }
@@ -731,19 +730,19 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
     return BTREE_ERROR_INVALID_btree_node;
 
   if (app.debug)
-    printf("@Removing key: %s\n", key_id);
+    printf("Removing key: %s\n", key_id);
 
   u16 pos;
   btree_node *p = b_search(b, key_id, &pos);
   if (!p || strcmp(p->keys[pos].id, key_id) != 0) {
     if (app.debug)
-      puts("@Key not found");
+      puts("Key not found");
     return BTREE_NOT_FOUND_KEY;
   }
 
   if (p->leaf) {
     if (app.debug)
-      printf("@Removing key from leaf btree_node RRN: %hu at position: %hu\n", p->rrn,
+      printf("Removing key from leaf btree_node RRN: %hu at position: %hu\n", p->rrn,
              pos);
     u16 data_rrn = p->keys[pos].data_register_rrn;
 
@@ -775,7 +774,7 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
 
     if (p != b->root && p->keys_num < (ORDER - 1) / 2) {
       if (app.debug)
-        puts("@Leaf underflow detected");
+        puts("Leaf underflow detected");
 
       btree_node *left = get_sibling(b, p, true);
       if (left && left->keys_num > (ORDER - 1) / 2) {
@@ -798,7 +797,7 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
   }
 
   if (app.debug)
-    puts("@Key found in internal node - not removing");
+    puts("Key found in internal node - not removing");
   return BTREE_SUCCESS;
 }
 
@@ -944,7 +943,7 @@ int write_index_header(io_buf *io) {
   }
 
   if (app.debug) {
-    printf("@Successfully written on index: root_rrn: %hu, btree_node_size: %hu, "
+    printf("Successfully written on index: root_rrn: %hu, btree_node_size: %hu, "
            "size: %hu, "
            "free_rrn_address: %s\n",
            io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
@@ -987,7 +986,7 @@ void load_index_header(io_buf *io) {
     return;
   }
 
-  printf("root_rrn: %hu, btree_node_size: %hu, size: %hu\n", io->br->root_rrn,
+  g_info("Loaded index header: root_rrn: %hu\tbtree_node_size: %hu\tsize: %hu\n", io->br->root_rrn,
          io->br->btree_node_size, io->br->header_size);
 
   size_t rrn_len = io->br->header_size - (3 * sizeof(u16));
@@ -1007,7 +1006,7 @@ void load_index_header(io_buf *io) {
   io->br->free_rrn_address[rrn_len] = '\0';
 
   if (app.debug) {
-    puts("@Index header Record Loaded");
+    puts("Index header Record Loaded");
     printf("-->index_header: root_rrn: %hu btree_node_size: %hu size: %hu "
            "free_rrn_list: %s\n",
            io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
@@ -1021,7 +1020,7 @@ btree_status write_index_record(b_tree_buf *b, btree_node *p) {
 
   if (app.debug) {
     puts("////////");
-    puts("@Writting following btree_node: ");
+    puts("Writting following btree_node: ");
     print_btree_node(p);
   }
 
@@ -1041,7 +1040,7 @@ btree_status write_index_record(b_tree_buf *b, btree_node *p) {
   fflush(b->io->fp);
 
   if (app.debug) {
-    printf("@Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
+    printf("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
   }
 
   if (!queue_search(b->q, p->rrn)) {
@@ -1087,7 +1086,7 @@ void create_index_file(io_buf *io, const char *file_name) {
     return;
   }
 
-  printf("Loading file: %s\n", io->address);
+  g_debug(DISK_STATUS, "Loading file: %s\n", io->address);
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
     if (app.debug)
@@ -1119,7 +1118,7 @@ void create_index_file(io_buf *io, const char *file_name) {
   }
 
   if (app.debug) {
-    puts("@Index file created successfully");
+    puts("Index file created successfully");
   }
 }
 
@@ -1169,7 +1168,7 @@ void clear_btree_node(btree_node *btree_node) {
   if (btree_node) {
     g_dealloc(btree_node);
     if (app.debug)
-      puts("@Successfully freed btree_node");
+      puts("Successfully freed btree_node");
     return;
   }
   puts("Error while freeing btree_node");
@@ -1398,7 +1397,7 @@ void load_list(free_rrn_list *i, char *s) {
 
   fflush(i->io->fp);
   if (app.debug)
-    printf("@Loaded RRN list with %d entries\n", i->n);
+    printf("Loaded RRN list with %d entries\n", i->n);
 }
 
 u16 *load_rrn_list(free_rrn_list *i) {
@@ -1501,7 +1500,7 @@ void insert_list(free_rrn_list *i, int rrn) {
     printf("Current count before insertion: %d\n", i->n);
   if (rrn_exists(i->free_rrn, i->n, rrn)) {
     if (app.debug)
-      printf("@RRN %d already exists in the list\n", rrn);
+      printf("RRN %d already exists in the list\n", rrn);
     return;
   }
 
@@ -1524,7 +1523,7 @@ void insert_list(free_rrn_list *i, int rrn) {
     for (int j = 0; j < i->n; j++)
       printf("%hu ", i->free_rrn[j]);
     puts("");
-    printf("@RRN %d added and list sorted. New list:\n", rrn);
+    printf("RRN %d added and list sorted. New list:\n", rrn);
     for (int j = 0; j < i->n; j++)
       printf("%d ", i->free_rrn[j]);
     puts("");
@@ -1557,7 +1556,7 @@ io_buf *alloc_io_buf(void) {
   }
 
   if (app.debug) {
-    puts("@Allocated IO_BUFFER");
+    puts("Allocated IO_BUFFER");
   }
   return io;
 }
@@ -1735,7 +1734,7 @@ void prepend_data_header(io_buf *io) {
   }
 
   if (app.debug)
-    printf("@Successfully written header: %hu %hu %s\n", io->hr->record_size,
+    printf("Successfully written header: %hu %hu %s\n", io->hr->record_size,
            io->hr->header_size, io->hr->free_rrn_address);
 
   fflush(io->fp);
@@ -1783,10 +1782,9 @@ void load_file(io_buf *io, char *file_name, const char *type) {
     io->fp = NULL;
   }
 
-  memcpy(io->address, file_name, strlen(file_name));
-  io->address[strlen(file_name) + 1] = '\0';
+  sprintf(io->address, "%s", file_name);
 
-  printf("@Loading file: %s\n", file_name);
+  g_debug(DISK_STATUS, "Loading file: %s\n", file_name);
 
   io->fp = fopen(io->address, "r+b");
   if (io->fp == NULL) {
@@ -1832,7 +1830,7 @@ void load_file(io_buf *io, char *file_name, const char *type) {
     return;
   }
 
-  puts("@File loaded");
+  g_info("Loaded %s", file_name);
 }
 
 void create_data_file(io_buf *io, char *file_name) {
@@ -1856,7 +1854,7 @@ void create_data_file(io_buf *io, char *file_name) {
     strcpy(dot, ".hlp");
 
   if (app.debug)
-    printf("@Loading File: %s\n", io->address);
+    printf("Loading File: %s\n", io->address);
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
     if (app.debug)
@@ -1891,16 +1889,16 @@ void create_data_file(io_buf *io, char *file_name) {
 
   if (prepend == 1) {
     if (app.debug)
-      puts("@Prepending data header");
+      puts("Prepending data header");
     populate_header(io->hr, list_name);
     prepend_data_header(io);
   } else {
     if (app.debug)
-      puts("@Header already exists, no need to prepend");
+      puts("Header already exists, no need to prepend");
   }
 
   if (app.debug) {
-    puts("@Data file created successfully");
+    puts("Data file created successfully");
   }
 }
 
@@ -1927,6 +1925,6 @@ void clear_io_buf(io_buf *io) {
 
   g_dealloc(io);
   if (app.debug) {
-    puts("@IO_BUFFER cleared");
+    puts("IO_BUFFER cleared");
   }
 }
