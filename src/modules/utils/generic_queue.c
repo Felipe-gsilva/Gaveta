@@ -108,4 +108,16 @@ void print_generic_queue(generic_queue **gq, print_callback_fn printer){
   }
 }
 
+bool clear_gq(generic_queue **gq) {
+  if (!gq || !*gq) {
+    g_warn(QUEUE_STATUS, "trying to dealocate a non allocated queue!");
+    return false;
+  }
 
+  generic_queue *helper = (*gq);
+  while (*gq) pop_generic_queue(gq, NULL);
+
+  // helper is head
+  g_dealloc(helper);
+  return true;
+}

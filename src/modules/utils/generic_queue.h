@@ -16,6 +16,7 @@ bool pop_generic_queue(generic_queue **gq, generic_queue *save_to);
 
 generic_queue *top_generic_queue(generic_queue **gq);
 bool is_generic_queue_empty(generic_queue **gq);
+bool clear_gq(generic_queue **gq);
 
 typedef void (*print_callback_fn)(void *data);
 

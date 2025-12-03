@@ -4,7 +4,7 @@ title: 'refactor pages, btree_node and integrate them with generic data types'
 status: To Do
 assignee: []
 created_date: '2025-11-29 17:17'
-updated_date: '2025-11-30 12:53'
+updated_date: '2025-12-03 18:45'
 labels: []
 dependencies: []
 ---
@@ -16,5 +16,5 @@ first step is to refactor the code in order to keep build it later on. No archte
 
 structures to write:
 - [ ] list
-- [ ] queue
+- [X] queue
 <!-- SECTION:DESCRIPTION:END -->

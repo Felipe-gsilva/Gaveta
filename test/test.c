@@ -26,6 +26,7 @@ void test_queue_search(void) {
   print_gq(&gq2, btree_node);
   pop_generic_queue(&gq2, NULL);
   print_gq(&gq2, btree_node);
+  clear_gq(&gq2);
 }
 
 int main(void) {
