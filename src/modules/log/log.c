@@ -64,7 +64,7 @@ void g_log(log_level level, status_code status, const char *str, ...) {
       break;
     case 7: 
       printf("%d - Queue status | ", status);
-      
+      break;
     default:
       printf("%d - Unknown Status | ", status);
   }

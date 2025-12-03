@@ -2,7 +2,6 @@
 #define __GENERIC_QUEUE_H
 
 #include "../../defines.h"
-#include "../memory/mem.h"
 
 typedef struct __generic_queue {
   void *data;
@@ -25,7 +24,7 @@ void print_float_node(void *data);
 void print_string_node(void *data);
 void print_gq_btree_node(void *data);
 
-#define print_gq(gq, T) print_generic_queue(gq, _Generic((T)0, \
+#define print_gq(gq, T) print_generic_queue(gq, _Generic((T){0}, \
     int:    print_int_node,    \
     float:  print_float_node,  \
     char*:  print_string_node, \

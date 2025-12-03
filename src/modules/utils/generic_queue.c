@@ -84,12 +84,10 @@ void print_string_node(void *data) {
   printf("%s\n", (char*)data);
 }
 
-
 void print_gq_btree_node(void *data) {
   btree_node buffer = *(btree_node*)data;
   printf("%d\n", buffer.rrn);
 }
-
 
 void print_generic_queue(generic_queue **gq, print_callback_fn printer){
   if (is_generic_queue_empty(gq)) {

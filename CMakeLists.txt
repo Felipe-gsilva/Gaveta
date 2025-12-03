@@ -15,9 +15,12 @@ file(GLOB SRC_FILES src/*.c)
 file(GLOB MODULE_FILES src/modules/**/*.c)
 file(GLOB TEST_FILES test/*.c)
 
+add_library(gaveta_lib STATIC ${MODULE_FILES})
+
 include_directories(src)
 
-add_executable(${project_name} ${SRC_FILES} ${MODULE_FILES})
+add_executable(${project_name} ${SRC_FILES})
+target_link_libraries(${project_name} PRIVATE gaveta_lib)
 
 # testing
 # enable_testing()
