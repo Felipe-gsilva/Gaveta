@@ -73,18 +73,30 @@ generic_queue *top_generic_queue(generic_queue **gq) {
   return (*gq)->next;
 }
 
-void print_generic_queue(generic_queue **gq) {
+void print_int_node(void *data) {
+  printf("%d\n", *(int*)data);
+}
+void print_float_node(void *data) {
+  printf("%f\n", *(float*)data);
+}
+void print_string_node(void *data) {
+  printf("%s\n", (char*)data);
+}
+
+// Accepts the queue AND the specific printer function
+void print_generic_queue(generic_queue **gq, print_callback_fn printer){
   if (is_queue_empty(gq)) {
     printf("Queue is empty\n");
     return;
   }
 
   generic_queue *aux = (*gq)->next;
-  
+
   int i = 0;
   while (aux != NULL) {
     if (aux->data) {
-        printf("[%d]: %s\n", i, (char*)aux->data);
+      printf("Queue with data_size %d. Entry [%d]: ", (*gq)->data_size, i);
+      printer(aux->data);
     }
     aux = aux->next;
     i++;

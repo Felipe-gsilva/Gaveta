@@ -29,6 +29,7 @@ void get_id(int i, char *first_key) {
 }
 
 void init_app(void) {
+  read_btree_config();
   init_mem(MB * 16);
   app.idx = alloc_io_buf();
   app.data = alloc_io_buf();
@@ -37,6 +38,7 @@ void init_app(void) {
   app.min_log_level = INFO;
   if (app.idx && app.data)
     return;
+
 
   g_crit_error(APP_ERROR, "Error while allocating APP_BUFFER");
 }
@@ -63,11 +65,11 @@ void clear_app() {
 
 int main(int argc, char **argv) {
   init_app();
-  int n = ORDER;
+  int n = app.b_cfg.order;
   char *index_file = g_alloc(MAX_ADDRESS), *data_file = g_alloc(MAX_ADDRESS);
 
-  sprintf(index_file, "public/btree%c%d.idx", '-', n);
-  strcpy(data_file, "public/btree.dat");
+  sprintf(index_file, "assets/public/btree%c%d.idx", '-', n);
+  strcpy(data_file, "assets/public/btree.dat");
 
   create_index_file(app.b->io, index_file);
   create_data_file(app.data, data_file);
@@ -105,13 +107,13 @@ int main(int argc, char **argv) {
   push_generic_queue(&gq, &val1);
   push_generic_queue(&gq, &val2);
 
-  print_generic_queue(&gq); 
+  print_gq(&gq, int); 
 
   pop_generic_queue(&gq, NULL);
-  print_generic_queue(&gq);
+  print_gq(&gq, int);
 
   pop_generic_queue(&gq, NULL);
-  print_generic_queue(&gq);
+  print_gq(&gq, int);
 
   clear_app();
   return 0;

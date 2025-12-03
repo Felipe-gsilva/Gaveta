@@ -17,6 +17,18 @@ bool pop_generic_queue(generic_queue **gq, generic_queue *save_to);
 
 generic_queue *top_generic_queue(generic_queue **gq);
 bool is_generic_queue_empty(generic_queue **gq);
-void print_generic_queue(generic_queue **gq);
 
+typedef void (*print_callback_fn)(void *data);
+
+void print_int_node(void *data);
+void print_float_node(void *data);
+void print_string_node(void *data);
+
+#define print_gq(gq, T) print_generic_queue(gq, _Generic((T)0, \
+    int:    print_int_node,    \
+    float:  print_float_node,  \
+    char*:  print_string_node, \
+    default: print_int_node))
+
+void print_generic_queue(generic_queue **gq, print_callback_fn printer);
 #endif

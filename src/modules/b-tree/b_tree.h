@@ -3,8 +3,6 @@
 
 #include "../../defines.h"
 
-#define ORDER 20 // for now
-
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
   BTREE_NOT_FOUND_KEY = 3,

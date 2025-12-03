@@ -12,6 +12,7 @@
 
 // in bytes
 #define MAX_ADDRESS 4096
+#define STRING_BUFFER_SIZE 128
 
 // queue max
 #define P 5 
