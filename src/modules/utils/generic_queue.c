@@ -1,7 +1,7 @@
 #include "generic_queue.h"
 #include "../log/log.h"
 #include "../memory/mem.h"
-#include "../b-tree/b_tree.h"
+#include "../btree/btree.h"
 
 bool is_generic_queue_empty(generic_queue **gq) {
   if (gq && *gq) return false;

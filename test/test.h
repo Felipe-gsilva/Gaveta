@@ -2,8 +2,8 @@
 #define _TEST
 
 #include "../src/defines.h"
-
-void test_tree(b_tree_buf *b, io_buf *data, int n);
+#include "../src/modules/utils/generic_queue.h"
+#include "../src/modules/btree/btree.h"
 
 void test_queue_search(void);
 #endif
