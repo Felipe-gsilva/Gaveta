@@ -1,8 +1,9 @@
 #include "generic_queue.h"
 #include "../log/log.h"
 #include "../memory/mem.h"
+#include "../b-tree/b_tree.h"
 
-bool is_queue_empty(generic_queue **gq) {
+bool is_generic_queue_empty(generic_queue **gq) {
   if (gq && *gq) return false;
   return true;
 }
@@ -44,7 +45,7 @@ bool push_generic_queue(generic_queue **gq, void *data) {
 }
 
 bool pop_generic_queue(generic_queue **gq, generic_queue *save_to) {
-  if (is_queue_empty(gq)) return false;
+  if (is_generic_queue_empty(gq)) return false;
 
   generic_queue *sentinel = *gq;
   generic_queue *node_to_remove = sentinel->next;
@@ -65,7 +66,7 @@ bool pop_generic_queue(generic_queue **gq, generic_queue *save_to) {
 }
 
 generic_queue *top_generic_queue(generic_queue **gq) {
-  if (is_queue_empty(gq)) {
+  if (is_generic_queue_empty(gq)) {
     g_error(QUEUE_EMPTY, "Trying to top a empty generic queue!");
     return NULL;
   }
@@ -83,9 +84,15 @@ void print_string_node(void *data) {
   printf("%s\n", (char*)data);
 }
 
-// Accepts the queue AND the specific printer function
+
+void print_gq_btree_node(void *data) {
+  btree_node buffer = *(btree_node*)data;
+  printf("%d\n", buffer.rrn);
+}
+
+
 void print_generic_queue(generic_queue **gq, print_callback_fn printer){
-  if (is_queue_empty(gq)) {
+  if (is_generic_queue_empty(gq)) {
     printf("Queue is empty\n");
     return;
   }
@@ -102,3 +109,5 @@ void print_generic_queue(generic_queue **gq, print_callback_fn printer){
     i++;
   }
 }
+
+
