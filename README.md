@@ -1,9 +1,18 @@
-# Database Storage Engine
+# GavetaDB - Database Storage Engine
 
-first sketch here:
-![diagram](public/first-architecture-sketch.png)
+**Gaveta** is a project which aims to implement a database storange engine in pure C, focusing on raw performance and in my personal reasons (the joy of writing C code and learning ever more). 
 
-## Testing
+This project is based on a btree I already did implement in C. The ideia is to allow users to create schemas to interact with the generic data structures in the backend using transactions to ensure data integrity. You can see a plan of the project down below:
+
+- [ ] Generic Data Structures (such as BTree, HashTable, LinkedList, etc)
+- [ ] BTree implementation/Refactor from the previous project
+- [ ] Schema creation
+- [ ] Transactions
+- [ ] Query language parser
+- [ ] Study how to distribute it later on
+- [ ] many more things...
+
+## Compiling
 
 You will need *cmake* in order to run the code:
 
@@ -13,4 +22,12 @@ cmake -S . -B target/
 cmake --build target/
 ./target/gaveta
 
+```
+
+## Testing (with CTest)
+You can run the tests using CTest, which is included with CMake:
+
+``` bash
+cd target/
+make test
 ```
