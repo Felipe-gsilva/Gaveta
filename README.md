@@ -1,6 +1,6 @@
 # GavetaDB - Database Storage Engine
 
-**Gaveta** is a (WIP) database storage engine written in pure C, focusing in raw performance and mainly in my personal desires (the joy of writing C code and learning in the process). 
+**Gaveta** is a (WIP) database storage engine written in pure C, focusing on raw performance and mainly on my personal desires (the joy of writing C code and learning in the process). 
 
 This project is based on a btree I already did implement in C. The ideia is to allow users to create schemas to interact with the generic data structures in the backend using transactions to ensure data integrity. You can see a plan of the project down below:
 
