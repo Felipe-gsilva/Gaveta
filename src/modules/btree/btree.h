@@ -2,6 +2,7 @@
 #define __BTREE_H__
 
 #include "../../defines.h"
+#include "../utils/generic_queue.h"
 
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
@@ -81,25 +82,12 @@ typedef struct __free_rrn_list {
 typedef struct __b_tree_buf {
   btree_node *root;
   io_buf *io;
-  queue *q;
+  generic_queue *q;
   free_rrn_list *i;
+  u32 order;
 } b_tree_buf;
 
-// procedures
-// queue
-queue *alloc_queue(void);
-
-void clear_queue(queue *queue);
-
-void print_queue(queue *queue);
-
-void push_btree_node(b_tree_buf *b, btree_node *btree_node);
-
-btree_node *queue_search(queue *queue, u16 rrn);
-bool is_queue_empty(queue *queue);
-
-// b_tree
-b_tree_buf *alloc_tree_buf(void);
+b_tree_buf *alloc_tree_buf(u32 order);
 
 void build_tree(b_tree_buf *b, io_buf *data, int n);
 
@@ -154,20 +142,20 @@ int write_index_header(io_buf *io);
 
 int write_index_record(b_tree_buf *b, btree_node *p);
 
-btree_node *alloc_btree_node(void);
+btree_node *alloc_btree_node(u32 order);
 
 btree_node *new_btree_node(u16 rrn);
 
-void clear_btree_node(btree_node *btree_node);
+bool clear_btree_node(btree_node *btree_node);
 
-void clear_all_btree_nodes(void);
+bool clear_all_btree_nodes(void);
 
 void track_btree_node(btree_node *p);
 free_rrn_list *alloc_ilist(void);
 
-void clear_ilist(free_rrn_list *i);
+bool clear_ilist(free_rrn_list *i);
 
-void load_list(free_rrn_list *i, char* s);
+bool load_list(free_rrn_list *i, char* s);
 
 u16 *load_rrn_list(free_rrn_list *i);
 

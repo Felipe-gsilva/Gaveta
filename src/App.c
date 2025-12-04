@@ -32,7 +32,7 @@ void init_app(void) {
   init_mem(MB * 16);
   app.idx = alloc_io_buf();
   app.data = alloc_io_buf();
-  app.b = alloc_tree_buf();
+  app.b = alloc_tree_buf(app.b_cfg.order);
   app.ld = alloc_ilist();
   app.min_log_level = INFO;
   if (app.idx && app.data)

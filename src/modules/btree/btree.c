@@ -1,146 +1,11 @@
 #include "btree.h"
-#include "../../App.h"
-
-extern App app;
+#include "../memory/mem.h"
+#include "../log/log.h"
 
 btree_node **g_allocated;
 u16 g_n = 0;
 
-queue *alloc_queue(void) {
-  queue *root = g_alloc(sizeof(queue));
-  if (!root) {
-    g_error(BTREE_ERROR, "Error: Memory allocation failed");
-    return NULL;
-  }
-  root->next = NULL;
-  root->btree_node = NULL;
-  root->counter = 0;
-  g_debug(QUEUE_STATUS, "Allocated queue");
-  return root;
-}
-
-void clear_queue(queue *q) {
-  if (!q) {
-    g_error(BTREE_ERROR, "Error: NULL queue pointer\n");
-    return;
-  }
-  queue *current = q->next;
-  queue *next_node;
-  while (current) {
-    next_node = current->next;
-    if (current->btree_node) {
-      current->btree_node = NULL;
-    }
-    g_dealloc(current);
-    current = next_node;
-  }
-  q->next = NULL;
-  q->counter = 0;
-
-  if (app.debug) {
-    puts("Queue cleared");
-  }
-}
-void print_queue(queue *q) {
-  if (!q) {
-    fprintf(stderr, "!!Error: NULL queue pointer\n");
-    return;
-  }
-
-  if (!q->next) {
-    fprintf(stderr, "!!Error: Empty queue\n");
-    return;
-  }
-
-  printf("Queue contents:\n");
-  queue *current = q->next;
-  int node_count = 0;
-
-  while (current) {
-    if (!current->btree_node) {
-      fprintf(stderr, "!!Error: NULL btree_node in queue node %d\n", node_count);
-      current = current->next;
-      continue;
-    }
-
-    printf("Node %d (RRN: %d) Keys: ", node_count, current->btree_node->rrn);
-
-    print_btree_node(current->btree_node);
-    printf("\n");
-
-    current = current->next;
-    node_count++;
-  }
-
-  if (app.debug) {
-    printf("Total nodes in queue: %d\n", node_count);
-  }
-}
-
-void push_btree_node(b_tree_buf *b, btree_node *p) {
-  if (!b || !b->q || !p) {
-    g_error(BTREE_ERROR, "Error: NULL queue pointer or btree_node");
-    return;
-  }
-
-  if (queue_search(b->q, p->rrn)) {
-    if (app.debug)
-      puts("btree_node already in queue");
-    return;
-  }
-
-  queue *new_node = g_alloc(sizeof(queue));
-  if (!new_node) {
-    g_error(BTREE_ERROR, "Error: Memory allocation failed");
-    return;
-  }
-
-  new_node->btree_node = p;
-  new_node->next = b->q->next;
-  b->q->next = new_node;
-  b->q->counter++;
-
-  if (app.debug)
-    puts("Pushed btree_node onto queue");
-}
-
-btree_node *pop_btree_node(b_tree_buf *b) {
-  if (!b->q || b->q->next == NULL) {
-    g_error(BTREE_ERROR, "Error: NULL or Empty queue pointer");
-    return NULL;
-  }
-
-  queue *head = b->q->next;
-  btree_node *btree_node = head->btree_node;
-
-  b->q->next = head->next;
-  b->q->counter--;
-
-  if (app.debug)
-    puts("Popped from queue");
-
-  g_dealloc(head);
-  return btree_node;
-}
-btree_node *queue_search(queue *q, u16 rrn) {
-  if (!q)
-    return NULL;
-
-  queue *current = q->next;
-  while (current) {
-    if (current->btree_node && current->btree_node->rrn == rrn) {
-      if (app.debug) {
-        printf("btree_node with RRN %hu found in queue\n", rrn);
-      }
-      return current->btree_node;
-    }
-    current = current->next;
-  }
-  return NULL;
-}
-
-
-b_tree_buf *alloc_tree_buf(void) {
+b_tree_buf *alloc_tree_buf(u32 order) {
   b_tree_buf *b = g_alloc(sizeof(b_tree_buf));
   if (!b) {
     g_error(BTREE_ERROR, "Could not allocate b_tree_buf_BUFFER");
@@ -155,7 +20,9 @@ b_tree_buf *alloc_tree_buf(void) {
     return NULL;
   }
 
-  b->q = alloc_queue();
+  b->q = NULL;
+  init_gq(&b->q, sizeof(btree_node));
+
   if (!b->q) {
     g_dealloc(b->io);
     g_dealloc(b);
@@ -172,12 +39,11 @@ b_tree_buf *alloc_tree_buf(void) {
     return NULL;
   }
 
-  if (app.debug)
-    puts("Allocated b_tree_buf_BUFFER");
+  g_info("Allocated B_TREE_BUFFER");
   return b;
 }
 
-static int compare_btree_nodes(void *v1, void *v2) {
+static bool compare_btree_nodes(void *v1, void *v2) {
   btree_node *b1 = (btree_node*) v1;
   btree_node *b2 = (btree_node*) v2;
   assert(b1 && b2);
@@ -187,10 +53,11 @@ static int compare_btree_nodes(void *v1, void *v2) {
 void clear_tree_buf(b_tree_buf *b) {
   if (b) {
     clear_ilist(b->i);
-    clear_queue(b->q);
+    clear_gq(&b->q);
     clear_io_buf(b->io);
     if (b->root) {
-      btree_node *q_btree_node = queue_search(b->q, b->root->rrn);
+      btree_node *q_btree_node = g_alloc(sizeof(btree_node));
+      search_gq(&b->q, &b->root, compare_btree_nodes, &q_btree_node);
       if (!q_btree_node) {
         b->root = NULL;
       }
@@ -198,8 +65,7 @@ void clear_tree_buf(b_tree_buf *b) {
     g_dealloc(b);
     b = NULL;
   }
-  if (app.debug)
-    puts("B_TREE_BUFFER cleared");
+  g_debug(BTREE_STATUS, "B_TREE_BUFFER cleared");
 }
 
 void populate_index_header(index_header_record *bh, const char *file_name) {
@@ -222,7 +88,7 @@ void build_tree(b_tree_buf *b, io_buf *data, int n) {
   }
   if (!b->i) {
     load_list(b->i, b->io->br->free_rrn_address);
-    if (b->i && app.debug) {
+    if (b->i) {
       puts("Loaded rrn list");
     }
   }
@@ -233,8 +99,6 @@ void build_tree(b_tree_buf *b, io_buf *data, int n) {
       printf("!!Failed to load record %d\n", i);
       continue;
     }
-    if (app.debug)
-      print_data_record(d);
 
     btree_status status = b_insert(b, data, d, i);
     if ((status != BTREE_SUCCESS) && (status != BTREE_INSERTED_IN_BTREE_NODE)) {
@@ -245,9 +109,7 @@ void build_tree(b_tree_buf *b, io_buf *data, int n) {
   if (d)
     g_dealloc(d);
 
-  if (app.debug) {
-    puts("Built tree");
-  }
+  g_info("Built tree");
 }
 
 btree_node *load_btree_node(b_tree_buf *b, u16 rrn) {
@@ -256,35 +118,39 @@ btree_node *load_btree_node(b_tree_buf *b, u16 rrn) {
     return NULL;
   }
 
-  btree_node *btree_node = queue_search(b->q, rrn);
-  if (btree_node) {
+  // TODO change because of RRN
+  btree_node *bn = g_alloc(sizeof(btree_node));
+  bn->rrn = rrn;
+  search_gq(&b->q, &rrn, compare_btree_nodes, &bn);
+
+  if (bn) {
     g_debug(BTREE_STATUS, "Btree_node found in queue");
-    return btree_node;
+    return bn;
   }
 
-  btree_node = alloc_btree_node();
-  if (!btree_node)
+  bn = alloc_btree_node(b->order);
+  if (!bn)
     return NULL;
 
-  btree_node->rrn = rrn;
+  bn->rrn = rrn;
 
   size_t byte_offset =
       (size_t)(b->io->br->header_size) + ((size_t)(b->io->br->btree_node_size) * rrn);
 
   if (fseek(b->io->fp, byte_offset, SEEK_SET) != 0) {
-    g_dealloc(btree_node);
+    g_dealloc(bn);
     return NULL;
   }
 
-  size_t bytes_read = fread(btree_node, 1, b->io->br->btree_node_size, b->io->fp);
+  size_t bytes_read = fread(bn, 1, b->io->br->btree_node_size, b->io->fp);
   if (bytes_read != b->io->br->btree_node_size) {
-    g_dealloc(btree_node);
+    g_dealloc(bn);
     return NULL;
   }
 
-  push_btree_node(b, btree_node);
+  push_gq(&b->q, &bn);
 
-  return btree_node;
+  return bn;
 }
 
 int write_root_rrn(b_tree_buf *b, u16 rrn) {
@@ -365,7 +231,8 @@ void b_range_search(b_tree_buf *b, io_buf *data, key_range *range) {
         data_record *record =
             load_data_record(data, curr->keys[i].data_register_rrn);
         if (record) {
-          print_data_record(record);
+          // TODO not used print_data_record, since no schema yet exists
+          // print_data_record(record); 
           g_dealloc(record);
         }
       }
@@ -396,8 +263,6 @@ int search_in_btree_node(btree_node *p, key key, int *return_pos) {
       return BTREE_NOT_FOUND_KEY;
     }
 
-    if (app.debug)
-      printf("btree_node key id: %s\t key id: %s\n", p->keys[i].id, key.id);
     if (strcmp(p->keys[i].id, key.id) == 0) {
       puts("Curr key was found");
       *return_pos = i;
@@ -406,8 +271,6 @@ int search_in_btree_node(btree_node *p, key key, int *return_pos) {
 
     if (strcmp(p->keys[i].id, key.id) > 0) {
       *return_pos = i;
-      if (app.debug)
-        puts("Curr key is greater than the new one");
       return BTREE_NOT_FOUND_KEY;
     }
   }
@@ -424,10 +287,8 @@ u16 search_key(b_tree_buf *b, btree_node *p, key k, u16 *found_pos,
   int pos;
   int result = search_in_btree_node(p, k, &pos);
 
-  if (app.debug) {
-    printf("btree_node key id: %s     key id: %s\n",
-           p->keys_num > 0 ? p->keys[0].id : "", k.id);
-  }
+  g_debug(BTREE_STATUS, "btree_node key id: %s     key id: %s\n",
+          p->keys_num > 0 ? p->keys[0].id : "", k.id);
 
   if (result == BTREE_FOUND_KEY) {
     *found_pos = pos;
@@ -447,7 +308,7 @@ u16 search_key(b_tree_buf *b, btree_node *p, key k, u16 *found_pos,
 
   u16 ret = search_key(b, next, k, found_pos, return_btree_node);
 
-  if (next != b->root && !queue_search(b->q, next->rrn)) {
+  if (next != b->root && !search_gq(&b->q, &next, compare_btree_nodes, NULL)) {
     g_dealloc(next);
   }
 
@@ -461,20 +322,13 @@ void populate_key(key *k, data_record *d, u16 rrn) {
   strncpy(k->id, d->key, 0); // TODO key size minus null terminator
   k->data_register_rrn = rrn;
 
-  if (app.debug) {
-    printf("Populated key with ID: %s and data RRN: %hu\n", k->id,
-           k->data_register_rrn);
-  }
+  g_debug(BTREE_STATUS, "Populated key with ID: %s and data RRN: %hu\n", k->id,
+          k->data_register_rrn);
 }
 
 btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos) {
   if (!p)
     return BTREE_ERROR_INVALID_btree_node;
-
-  if (app.debug) {
-    printf("Current state - keys: %d, children: %d, inserting at pos: %d\n",
-           p->keys_num, p->child_num, pos);
-  }
 
   for (int i = p->keys_num - 1; i >= pos; i--) {
     p->keys[i + 1] = p->keys[i];
@@ -491,11 +345,9 @@ btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int
     p->child_num++;
   }
 
-  if (app.debug) {
-    printf("After insertion - keys: %d, children: %d\n", p->keys_num,
-           p->child_num);
-    printf("Inserted key with data RRN: %hu\n", k.data_register_rrn);
-  }
+  g_info("After insertion - keys: %d, children: %d\n", p->keys_num,
+         p->child_num);
+  g_info("Inserted key with data RRN: %hu\n", k.data_register_rrn);
 
   return BTREE_INSERTED_IN_BTREE_NODE;
 }
@@ -508,7 +360,7 @@ btree_status b_insert(b_tree_buf *b, io_buf *data, data_record *d, u16 rrn) {
   populate_key(&new_key, d, rrn);
 
   if (!b->root) {
-    b->root = alloc_btree_node();
+    b->root = alloc_btree_node(b->order);
     if (!b->root)
       return BTREE_ERROR_MEMORY;
 
@@ -538,7 +390,7 @@ btree_status b_insert(b_tree_buf *b, io_buf *data, data_record *d, u16 rrn) {
   }
 
   if (promoted) {
-    btree_node *new_root = alloc_btree_node();
+    btree_node *new_root = alloc_btree_node(b->order);
     if (!new_root)
       return BTREE_ERROR_MEMORY;
 
@@ -574,8 +426,8 @@ btree_status b_split(b_tree_buf *b, btree_node *p, btree_node **r_child, key *pr
   if (!b || !p || !r_child || !promo_key || !incoming_key)
     return BTREE_ERROR_INVALID_btree_node;
 
-  key temp_keys[app.b_cfg.order];
-  u16 temp_children[app.b_cfg.order + 1];
+  key temp_keys[b->order];
+  u16 temp_children[b->order + 1];
 
   memset(temp_keys, 0, sizeof(temp_keys));
   memset(temp_children, 0xFF, sizeof(temp_children));
@@ -604,7 +456,7 @@ btree_status b_split(b_tree_buf *b, btree_node *p, btree_node **r_child, key *pr
     temp_children[pos + 2] = (*r_child)->rrn;
   }
 
-  btree_node *new_btree_node = alloc_btree_node();
+  btree_node *new_btree_node = alloc_btree_node(b->order);
   if (!new_btree_node)
     return BTREE_ERROR_MEMORY;
 
@@ -614,11 +466,11 @@ btree_status b_split(b_tree_buf *b, btree_node *p, btree_node **r_child, key *pr
     return BTREE_ERROR_IO;
   }
 
-  int split = (app.b_cfg.order - 1) / 2;
+  int split = (b->order - 1) / 2;
 
   if (p->leaf) {
     p->keys_num = split + 1;
-    new_btree_node->keys_num = app.b_cfg.order - (split + 1);
+    new_btree_node->keys_num = b->order - (split + 1);
     new_btree_node->leaf = true;
 
     for (int i = 0; i < p->keys_num; i++) {
@@ -635,7 +487,7 @@ btree_status b_split(b_tree_buf *b, btree_node *p, btree_node **r_child, key *pr
     *promo_key = new_btree_node->keys[0];
   } else {
     p->keys_num = split;
-    new_btree_node->keys_num = app.b_cfg.order - split - 1;
+    new_btree_node->keys_num = b->order - split - 1;
     new_btree_node->leaf = false;
 
     for (int i = 0; i < p->keys_num; i++) {
@@ -695,14 +547,14 @@ btree_status insert_key(b_tree_buf *b, btree_node *p, key k, key *promo_key,
     btree_node *temp_child = NULL;
     status = insert_key(b, child, k, &temp_key, &temp_child, promoted);
 
-    if (child != b->root && !queue_search(b->q, child->rrn)) {
+    if (child != b->root && !search_gq(&b->q, &child, compare_btree_nodes, NULL)) {
       clear_btree_node(child);
     }
 
     if (status == BTREE_PROMOTION) {
       k = temp_key;
       *r_child = temp_child;
-      if (p->keys_num < app.b_cfg.order - 1) {
+      if (p->keys_num < b->order - 1) {
         *promoted = false;
         status = insert_in_btree_node(p, k, temp_child, pos);
         if (status == BTREE_INSERTED_IN_BTREE_NODE) {
@@ -715,7 +567,7 @@ btree_status insert_key(b_tree_buf *b, btree_node *p, key k, key *promo_key,
     return status;
   }
 
-  if (p->keys_num < app.b_cfg.order - 1) {
+  if (p->keys_num < b->order - 1) {
     *promoted = false;
     status = insert_in_btree_node(p, k, NULL, pos);
     if (status == BTREE_INSERTED_IN_BTREE_NODE) {
@@ -731,21 +583,16 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
   if (!b || !b->root || !data || !key_id)
     return BTREE_ERROR_INVALID_btree_node;
 
-  if (app.debug)
-    printf("Removing key: %s\n", key_id);
-
   u16 pos;
   btree_node *p = b_search(b, key_id, &pos);
   if (!p || strcmp(p->keys[pos].id, key_id) != 0) {
-    if (app.debug)
       puts("Key not found");
     return BTREE_NOT_FOUND_KEY;
   }
 
   if (p->leaf) {
-    if (app.debug)
-      printf("Removing key from leaf btree_node RRN: %hu at position: %hu\n", p->rrn,
-             pos);
+    g_info("Removing key from leaf btree_node RRN: %hu at position: %hu\n", p->rrn,
+           pos);
     u16 data_rrn = p->keys[pos].data_register_rrn;
 
     for (int i = pos; i < p->keys_num - 1; i++)
@@ -774,17 +621,16 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
     if (status < 0)
       return status;
 
-    if (p != b->root && p->keys_num < (app.b_cfg.order - 1) / 2) {
-      if (app.debug)
-        puts("Leaf underflow detected");
+    if (p != b->root && p->keys_num < (b->order - 1) / 2) {
+      g_info("Leaf underflow detected");
 
       btree_node *left = get_sibling(b, p, true);
-      if (left && left->keys_num > (app.b_cfg.order - 1) / 2) {
+      if (left && left->keys_num > (b->order - 1) / 2) {
         return redistribute(b, left, p, true);
       }
 
       btree_node *right = get_sibling(b, p, false);
-      if (right && right->keys_num > (app.b_cfg.order - 1) / 2) {
+      if (right && right->keys_num > (b->order - 1) / 2) {
         return redistribute(b, right, p, false);
       }
 
@@ -798,8 +644,7 @@ btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id) {
     return BTREE_SUCCESS;
   }
 
-  if (app.debug)
-    puts("Key found in internal node - not removing");
+  g_info("Key found in internal node - not removing");
   return BTREE_SUCCESS;
 }
 
@@ -944,13 +789,11 @@ int write_index_header(io_buf *io) {
     return BTREE_ERROR_IO;
   }
 
-  if (app.debug) {
-    printf("Successfully written on index: root_rrn: %hu, btree_node_size: %hu, "
-           "size: %hu, "
-           "free_rrn_address: %s\n",
-           io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
-           io->br->free_rrn_address);
-  }
+  g_info("Successfully written on index: root_rrn: %hu, btree_node_size: %hu, "
+         "size: %hu, "
+         "free_rrn_address: %s\n",
+         io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
+         io->br->free_rrn_address);
 
   fflush(io->fp);
   return BTREE_SUCCESS;
@@ -1007,24 +850,15 @@ void load_index_header(io_buf *io) {
   }
   io->br->free_rrn_address[rrn_len] = '\0';
 
-  if (app.debug) {
-    puts("Index header Record Loaded");
-    printf("-->index_header: root_rrn: %hu btree_node_size: %hu size: %hu "
-           "free_rrn_list: %s\n",
-           io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
-           io->br->free_rrn_address);
-  }
+  g_info("Index Header Record Loaded\n-->index_header: root_rrn: %hu btree_node_size: %hu size: %hu "
+         "free_rrn_list: %s\n",
+         io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
+         io->br->free_rrn_address);
 }
 
 btree_status write_index_record(b_tree_buf *b, btree_node *p) {
   if (!b || !b->io || !p)
     return BTREE_ERROR_IO;
-
-  if (app.debug) {
-    puts("////////");
-    puts("Writting following btree_node: ");
-    print_btree_node(p);
-  }
 
   int byte_offset = b->io->br->header_size + (b->io->br->btree_node_size * p->rrn);
 
@@ -1041,12 +875,10 @@ btree_status write_index_record(b_tree_buf *b, btree_node *p) {
 
   fflush(b->io->fp);
 
-  if (app.debug) {
-    printf("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
-  }
+  g_info("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
 
-  if (!queue_search(b->q, p->rrn)) {
-    push_btree_node(b, p);
+  if (!search_gq(&b->q, &p, compare_btree_nodes, NULL)) {
+    push_gq(&b->q, &p);
   }
 
   return BTREE_SUCCESS;
@@ -1091,8 +923,7 @@ void create_index_file(io_buf *io, const char *file_name) {
   g_debug(DISK_STATUS, "Loading file: %s\n", io->address);
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
-    if (app.debug)
-      printf("!!Error opening file: %s. Creating it...\n", io->address);
+    g_error(DISK_ERROR, "Error opening file: %s. Creating it...\n", io->address);
     io->fp = fopen(io->address, "wb");
     if (io->fp) {
       fclose(io->fp);
@@ -1119,12 +950,10 @@ void create_index_file(io_buf *io, const char *file_name) {
     write_index_header(io);
   }
 
-  if (app.debug) {
-    puts("Index file created successfully");
-  }
+  g_info("Index file created successfully");
 }
 
-btree_node *alloc_btree_node(void) {
+btree_node *alloc_btree_node(u32 order) {
   btree_node *p = NULL;
   if (posix_memalign((void **)&p, sizeof(void *), sizeof(btree_node)) != 0) {
     g_error(BTREE_ERROR, "Erro: falha na alocação da página");
@@ -1135,24 +964,18 @@ btree_node *alloc_btree_node(void) {
   p->leaf = true;
   p->next_leaf = (u16)-1;
 
-  for (int i = 0; i < app.b_cfg.order; i++) {
+  for (int i = 0; i < order; i++) {
     p->children[i] = (u16)-1;
   }
 
   return p;
 }
 
-void clear_all_btree_nodes(void) {
-  if (!g_allocated)
-    return;
-
-  if (app.debug)
-    puts("clearing btree nodes:");
+bool clear_all_btree_nodes(void) {
+  if (!g_allocated) return false;
 
   for (int i = 0; i < g_n; i++) {
     if (g_allocated[i]) {
-      if (app.debug)
-        printf("%hu\t", g_allocated[i]->rrn);
       g_dealloc(g_allocated[i]);
       g_allocated[i] = NULL;
     }
@@ -1161,19 +984,16 @@ void clear_all_btree_nodes(void) {
   g_dealloc(g_allocated);
   g_allocated = NULL;
   g_n = 0;
-
-  if (app.debug)
-    puts("");
+  return true;
 }
 
-void clear_btree_node(btree_node *btree_node) {
+bool clear_btree_node(btree_node *btree_node) {
   if (btree_node) {
     g_dealloc(btree_node);
-    if (app.debug)
-      puts("Successfully freed btree_node");
-    return;
+    return true;
   }
-  puts("Error while freeing btree_node");
+
+  return false;
 }
 
 void track_btree_node(btree_node *p) {
@@ -1216,7 +1036,7 @@ btree_node *find_parent(b_tree_buf *b, btree_node *current, btree_node *target) 
 
       btree_node *result = find_parent(b, child, target);
 
-      if (child != b->root && !queue_search(b->q, child->rrn)) {
+      if (child != b->root && !search_gq(&b->q, &child, compare_btree_nodes, NULL)) {
         clear_btree_node(child);
       }
 
@@ -1308,9 +1128,9 @@ free_rrn_list *alloc_ilist(void) {
   return i;
 }
 
-void clear_ilist(free_rrn_list *i) {
+bool clear_ilist(free_rrn_list *i) {
   if (!i)
-    return;
+    return false;
 
   if (i->io && i->io->fp) {
     fclose(i->io->fp);
@@ -1322,12 +1142,13 @@ void clear_ilist(free_rrn_list *i) {
 
   clear_io_buf(i->io);
   g_dealloc(i);
+  return true;
 }
 
-void load_list(free_rrn_list *i, char *s) {
+bool load_list(free_rrn_list *i, char *s) {
   if (!i || !s) {
     g_error(BTREE_ERROR, "Error: Invalid parameters");
-    return;
+    return false;
   }
 
   if (i->free_rrn) {
@@ -1339,7 +1160,7 @@ void load_list(free_rrn_list *i, char *s) {
     i->io = alloc_io_buf();
     if (!i->io) {
       g_error(BTREE_ERROR, "Error: Failed to allocate IO buffer");
-      return;
+      return false;
     }
   }
 
@@ -1352,14 +1173,14 @@ void load_list(free_rrn_list *i, char *s) {
     i->io->fp = fopen(i->io->address, "wb");
     if (!i->io->fp) {
       printf("!!Error: Cannot create file %s\n", s);
-      return;
+      return false;
     }
     i->n = 1;
     i->free_rrn = g_alloc(sizeof(u16));
     if (!i->free_rrn) {
       g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
       fclose(i->io->fp);
-      return;
+      return false;
     }
     i->free_rrn[0] = 0;
     fwrite(&i->n, sizeof(u16), 1, i->io->fp);
@@ -1375,7 +1196,7 @@ void load_list(free_rrn_list *i, char *s) {
     i->free_rrn = g_alloc(sizeof(u16));
     if (!i->free_rrn) {
       g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-      return;
+      return false;
     }
     i->free_rrn[0] = 0;
     fseek(i->io->fp, 0, SEEK_SET);
@@ -1388,7 +1209,7 @@ void load_list(free_rrn_list *i, char *s) {
       i->free_rrn = g_alloc(sizeof(u16));
       if (!i->free_rrn) {
         g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-        return;
+        return false;
       }
       i->free_rrn[0] = 0;
       fseek(i->io->fp, 0, SEEK_SET);
@@ -1398,8 +1219,8 @@ void load_list(free_rrn_list *i, char *s) {
   }
 
   fflush(i->io->fp);
-  if (app.debug)
-    printf("Loaded RRN list with %d entries\n", i->n);
+  g_info("Loaded RRN list with %d entries", i->n);
+  return true;
 }
 
 u16 *load_rrn_list(free_rrn_list *i) {
@@ -1421,11 +1242,6 @@ u16 *load_rrn_list(free_rrn_list *i) {
     return NULL;
   }
 
-  if (app.debug) {
-    for (int j = 0; j < i->n; j++)
-      printf("i->list[%d]: %hu\t", j, list[j]);
-    puts("");
-  }
   return list;
 }
 
@@ -1498,11 +1314,8 @@ void insert_list(free_rrn_list *i, int rrn) {
     return;
   }
 
-  if (app.debug)
-    printf("Current count before insertion: %d\n", i->n);
   if (rrn_exists(i->free_rrn, i->n, rrn)) {
-    if (app.debug)
-      printf("RRN %d already exists in the list\n", rrn);
+    g_warn(BTREE_STATUS, "RRN %d already exists in the list\n", rrn);
     return;
   }
 
@@ -1514,13 +1327,12 @@ void insert_list(free_rrn_list *i, int rrn) {
 
   i->free_rrn = new_list;
   i->free_rrn[i->n++] = rrn;
-  if (app.debug)
-    printf("New count after insertion: %d\n", i->n);
 
   sort_list(i->free_rrn, i->n);
   write_rrn_list_to_file(i);
 
-  if (app.debug) {
+  // TODO later check if this print is needed
+  if (false) {
     printf("List after insertion:\n");
     for (int j = 0; j < i->n; j++)
       printf("%hu ", i->free_rrn[j]);
@@ -1557,9 +1369,7 @@ io_buf *alloc_io_buf(void) {
     return NULL;
   }
 
-  if (app.debug) {
-    puts("Allocated IO_BUFFER");
-  }
+  g_info("Allocated IO_BUFFER");
   return io;
 }
 
@@ -1588,9 +1398,8 @@ void load_data_header(io_buf *io) {
     return;
   }
 
-  if (app.debug)
-    printf("Header_size: %hu \t Record size: %hu\n", temp_hr.header_size,
-           temp_hr.record_size);
+  g_debug(BTREE_STATUS, "Header_size: %hu \t Record size: %hu\n", temp_hr.header_size,
+          temp_hr.record_size);
 
   if (!io->hr) {
     io->hr = g_alloc(sizeof(data_header_record));
@@ -1626,10 +1435,8 @@ void load_data_header(io_buf *io) {
 
   io->hr->free_rrn_address[rrn_len] = '\0';
 
-  if (app.debug) {
-    printf("--> data_header: record_size: %hu size: %hu free_rrn_address: %s\n",
-           io->hr->record_size, io->hr->header_size, io->hr->free_rrn_address);
-  }
+  g_debug(BTREE_STATUS, "--> data_header: record_size: %hu size: %hu free_rrn_address: %s\n",
+          io->hr->record_size, io->hr->header_size, io->hr->free_rrn_address);
 }
 
 void print_data_record(data_record *hr) {
@@ -1652,9 +1459,8 @@ data_record *load_data_record(io_buf *io, u16 rrn) {
   }
 
   int byte_offset = io->hr->header_size + (io->hr->record_size * rrn);
-  if (app.debug)
-    printf("Header size: %d, Record size: %d, RRN: %d, byte_offset: %d\n",
-           io->hr->header_size, io->hr->record_size, rrn, byte_offset);
+  g_debug(BTREE_STATUS, "Header size: %d, Record size: %d, RRN: %d, byte_offset: %d\n",
+         io->hr->header_size, io->hr->record_size, rrn, byte_offset);
 
   if (fseek(io->fp, byte_offset, SEEK_SET) != 0) {
     g_error(BTREE_ERROR, "Error seeking to byte offset");
@@ -1735,9 +1541,8 @@ void prepend_data_header(io_buf *io) {
     g_dealloc(buffer);
   }
 
-  if (app.debug)
-    printf("Successfully written header: %hu %hu %s\n", io->hr->record_size,
-           io->hr->header_size, io->hr->free_rrn_address);
+  g_info("Successfully written header: %hu %hu %s\n", io->hr->record_size, 
+         io->hr->header_size, io->hr->free_rrn_address);
 
   fflush(io->fp);
 }
@@ -1775,10 +1580,9 @@ void load_file(io_buf *io, char *file_name, const char *type) {
   }
 
   if (io->fp != NULL) {
-    if (app.debug)
-      puts("--> buffer already filled\n--> closing logical link\n");
+    g_error(BTREE_ERROR, "Buffer already filled. Closing logical link");
     if (fclose(io->fp) != 0) {
-      g_error(BTREE_ERROR, "ERROR: failed to close file");
+      g_error(BTREE_ERROR, "Failed to close %s", file_name);
       return;
     }
     io->fp = NULL;
@@ -1855,12 +1659,9 @@ void create_data_file(io_buf *io, char *file_name) {
   if (dot)
     strcpy(dot, ".hlp");
 
-  if (app.debug)
-    printf("Loading File: %s\n", io->address);
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
-    if (app.debug)
-      printf("!!Error opening file: %s. Creating it...\n", io->address);
+    g_error(BTREE_ERROR, "!!Error opening file: %s. Creating it...\n", io->address);
     io->fp = fopen(io->address, "wb");
     if (!io->fp) {
       g_error(BTREE_ERROR, "Error creating file");
@@ -1890,18 +1691,11 @@ void create_data_file(io_buf *io, char *file_name) {
   }
 
   if (prepend == 1) {
-    if (app.debug)
-      puts("Prepending data header");
     populate_header(io->hr, list_name);
     prepend_data_header(io);
-  } else {
-    if (app.debug)
-      puts("Header already exists, no need to prepend");
   }
 
-  if (app.debug) {
-    puts("Data file created successfully");
-  }
+  g_info("Data file created successfully");
 }
 
 void clear_io_buf(io_buf *io) {
@@ -1926,7 +1720,4 @@ void clear_io_buf(io_buf *io) {
   }
 
   g_dealloc(io);
-  if (app.debug) {
-    puts("IO_BUFFER cleared");
-  }
 }

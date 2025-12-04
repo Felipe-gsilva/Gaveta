@@ -132,7 +132,7 @@ bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), g
 
   while (aux) {
     if (cmp_fn((*gq)->data, data)) {
-      *found_node = aux;
+      if (found_node) *found_node = aux;
       g_debug(QUEUE_STATUS, "Found queue entry with same data");
       return true;
     }
