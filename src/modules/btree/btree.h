@@ -95,8 +95,6 @@ void print_queue(queue *queue);
 
 void push_btree_node(b_tree_buf *b, btree_node *btree_node);
 
-btree_node *pop_btree_node(b_tree_buf *b);
-
 btree_node *queue_search(queue *queue, u16 rrn);
 bool is_queue_empty(queue *queue);
 

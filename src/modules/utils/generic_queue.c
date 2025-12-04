@@ -121,3 +121,23 @@ bool clear_gq(generic_queue **gq) {
   g_dealloc(helper);
   return true;
 }
+
+bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), generic_queue **found_node){
+  if (!*gq || is_gq_empty(gq)) {
+    g_error(QUEUE_ERROR, "Trying to search in a empty queue");
+    return false;
+  }
+
+  generic_queue *aux = (*gq);
+
+  while (aux) {
+    if (cmp_fn((*gq)->data, data)) {
+      *found_node = aux;
+      g_debug(QUEUE_STATUS, "Found queue entry with same data");
+      return true;
+    }
+  }
+  
+  g_warn(QUEUE_STATUS, "Could not find entry in queue");
+  return false;
+}

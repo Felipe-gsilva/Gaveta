@@ -10,13 +10,14 @@ typedef struct __generic_queue {
   u32 data_size;
 } generic_queue;
 
-bool init_generic_queue(generic_queue **gq, u32 data_size);
-bool push_generic_queue(generic_queue **gq, void *data);
-bool pop_generic_queue(generic_queue **gq, generic_queue *save_to);
+bool init_gq(generic_queue **gq, u32 data_size);
+bool push_gq(generic_queue **gq, void *data);
+bool pop_gq(generic_queue **gq, generic_queue *save_to);
 
-generic_queue *top_generic_queue(generic_queue **gq);
-bool is_generic_queue_empty(generic_queue **gq);
+generic_queue *top_gq(generic_queue **gq);
+bool is_gq_empty(generic_queue **gq);
 bool clear_gq(generic_queue **gq);
+bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void*, void*), generic_queue **found_node);
 
 typedef void (*print_callback_fn)(void *data);
 

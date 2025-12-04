@@ -89,10 +89,6 @@ void push_btree_node(b_tree_buf *b, btree_node *p) {
     return;
   }
 
-  if (b->q->counter >= P) {
-    pop_btree_node(b);
-  }
-
   queue *new_node = g_alloc(sizeof(queue));
   if (!new_node) {
     g_error(BTREE_ERROR, "Error: Memory allocation failed");
@@ -179,6 +175,13 @@ b_tree_buf *alloc_tree_buf(void) {
   if (app.debug)
     puts("Allocated b_tree_buf_BUFFER");
   return b;
+}
+
+static int compare_btree_nodes(void *v1, void *v2) {
+  btree_node *b1 = (btree_node*) v1;
+  btree_node *b2 = (btree_node*) v2;
+  assert(b1 && b2);
+  return (b1->rrn == b2->rrn);
 }
 
 void clear_tree_buf(b_tree_buf *b) {
