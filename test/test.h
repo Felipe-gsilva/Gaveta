@@ -6,4 +6,6 @@
 #include "../src/modules/btree/btree.h"
 
 void test_queue_search(void);
+
+int main(void);
 #endif

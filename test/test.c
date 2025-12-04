@@ -1,4 +1,12 @@
 #include "test.h"
+#include <assert.h>
+
+static bool compare_ints(void *v1, void *v2) {
+  int *i1 = v1;
+  int *i2 = v2;
+
+  return *i2 == *i1;
+}
 
 void test_queue_search(void) {
   // homogeneous data type
@@ -8,11 +16,11 @@ void test_queue_search(void) {
   int val2 = 8;
   push_gq(&gq, &val1);
   push_gq(&gq, &val2);
-  print_gq(&gq, int); 
+  generic_queue *entry = NULL;
+  search_gq(&gq, &val1, compare_ints, &entry);
+  assert(*(int*)entry->data == 6);
   pop_gq(&gq, NULL);
-  print_gq(&gq, int);
   pop_gq(&gq, NULL);
-  print_gq(&gq, int);
 
   // heterogeneous data type
   generic_queue *gq2 = NULL;
@@ -21,7 +29,8 @@ void test_queue_search(void) {
   push_gq(&gq2, &g);
   print_gq(&gq2, btree_node);
   push_gq(&gq2, &g);
-  print_gq(&gq2, btree_node);
+
+
   pop_gq(&gq2, NULL);
   print_gq(&gq2, btree_node);
   pop_gq(&gq2, NULL);
@@ -29,7 +38,3 @@ void test_queue_search(void) {
   clear_gq(&gq2);
 }
 
-int main(void) {
-  test_queue_search();
-  return 0;
-}

@@ -26,7 +26,11 @@ target_link_libraries(${project_name} PRIVATE gaveta_lib)
 
 # testing
 enable_testing()
+
 add_test(NAME ${project_name}_test COMMAND ${project_name}_test)
+add_executable(${project_name}_test ${TEST_FILES})
+target_link_libraries(${project_name}_test PRIVATE gaveta_lib)
+
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C flags debug: ${CMAKE_C_FLAGS_DEBUG}")
