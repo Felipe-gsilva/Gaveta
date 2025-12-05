@@ -124,7 +124,12 @@ bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), g
     return false;
   }
 
-  generic_queue *aux = (*gq);
+  if (!cmp_fn) {
+    g_error(QUEUE_ERROR, "No comparison function provided");
+    return false;
+  }
+
+  generic_queue *aux = (*gq)->next;
 
   while (aux) {
     if (cmp_fn((*gq)->data, data)) {
@@ -132,6 +137,7 @@ bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), g
       g_debug(QUEUE_STATUS, "Found queue entry with same data");
       return true;
     }
+    aux = aux->next;
   }
   
   g_warn(QUEUE_STATUS, "Could not find entry in queue");

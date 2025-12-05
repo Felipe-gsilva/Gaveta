@@ -51,9 +51,9 @@ b_tree_buf *alloc_tree_buf(u32 order) {
 }
 
 bool compare_btree_nodes(void *v1, void *v2) {
-  assert(v1 && v2);
   btree_node *b1 = (btree_node*) v1;
   btree_node *b2 = (btree_node*) v2;
+  assert((b1 != NULL) && (b2 != NULL));
   return (b1->rrn == b2->rrn);
 }
 
