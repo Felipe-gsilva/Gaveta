@@ -31,6 +31,7 @@ typedef struct __memory {
   page_table pt;
   void *pool;
   u32 size;
+  bool initialized;
 } memory;
 
 typedef struct __alloc_header {

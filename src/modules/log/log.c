@@ -2,18 +2,18 @@
 #include "../utils/utils.h"
 #include "stdio.h"
 #include <time.h>
-#include "../../App.h"
 
-extern App app;
+bool debug;
+log_level min_log_level;
 
 log_level get_min_log_level(void) {
-  if (app.debug)
+  if (debug)
     return INFO;
   return WARN;
 }
 
 void g_log(log_level level, status_code status, const char *str, ...) {
-  if (level < app.min_log_level) return;
+  if (level < min_log_level) return;
 
   time_t clk = time(NULL);
 

@@ -1,14 +1,16 @@
 #include "App.h"
 
 App app;
+extern log_level min_log_level;
+extern bool debug;
 
 bool set_envvar(const char *mode) {
   if (strcmp(mode, "Debug") == 0 || strcmp(mode, "DEBUG") == 0) {
-    app.debug = true;
+    debug = true;
     return true;
   }
 
-  app.debug = false;
+  debug = false;
   return false;
 }
 
@@ -34,7 +36,7 @@ void init_app(void) {
   app.data = alloc_io_buf();
   app.b = alloc_tree_buf(app.b_cfg.order);
   app.ld = alloc_ilist();
-  app.min_log_level = INFO;
+  min_log_level = INFO;
   if (app.idx && app.data)
     return;
 
@@ -96,9 +98,21 @@ int main(int argc, char **argv) {
   //  app.b->io->br->root_rrn = app.b->root->rrn;
   //  write_index_header(app.b->io);
   //}
+  // heterogeneous data type
+  generic_queue *gq2 = NULL;
+  init_gq(&gq2, sizeof(btree_node)); 
+  btree_node g = {.child_num = 0, .children= NULL, .keys = NULL, .leaf = 0, .next_leaf = 0, .rrn = 0};
+  push_gq(&gq2, &g);
+  print_gq(&gq2, btree_node);
+  push_gq(&gq2, &g);
+  search_gq(&gq2, &g, compare_btree_nodes, NULL);
 
-  
 
+  pop_gq(&gq2, NULL);
+  print_gq(&gq2, btree_node);
+  pop_gq(&gq2, NULL);
+  print_gq(&gq2, btree_node);
+  clear_gq(&gq2);
 
 
   clear_app();

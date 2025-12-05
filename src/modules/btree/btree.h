@@ -2,7 +2,7 @@
 #define __BTREE_H__
 
 #include "../../defines.h"
-#include "../utils/generic_queue.h"
+#include "../ds/generic_queue.h"
 
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
@@ -65,7 +65,6 @@ typedef struct __index_header_record {
   char *free_rrn_address;
 } index_header_record;
 
-
 typedef struct __io_buf {
   char address[MAX_ADDRESS];
   FILE *fp;
@@ -86,6 +85,8 @@ typedef struct __b_tree_buf {
   free_rrn_list *i;
   u32 order;
 } b_tree_buf;
+
+void print_gq_btree_node(void *data);
 
 b_tree_buf *alloc_tree_buf(u32 order);
 
@@ -148,6 +149,8 @@ btree_node *new_btree_node(u16 rrn);
 
 bool clear_btree_node(btree_node *btree_node);
 
+bool compare_btree_nodes(void *v1, void *v2);
+
 bool clear_all_btree_nodes(void);
 
 void track_btree_node(btree_node *p);
@@ -190,6 +193,4 @@ void write_data_record(io_buf *io, data_record *d, u16 rrn);
 void clear_io_buf(io_buf *io_buf);
 
 void d_insert(io_buf *io, data_record *d, free_rrn_list *ld, u16 rrn);
-
-
 #endif

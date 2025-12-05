@@ -8,13 +8,10 @@
 #include "modules/config/config.h"
 
 typedef struct __App  {
-  bool debug;
   io_buf *idx;
   io_buf *data;
   b_tree_buf *b;
   free_rrn_list *ld;
-  memory *mem;
-  log_level min_log_level;
   btree_config b_cfg;
 } App;
 

@@ -1,8 +1,7 @@
 #include "mem.h"
 #include "../log/log.h"
-#include "../../App.h"
 
-extern App app;
+memory *g_mem = NULL;
 
 void init_mem(u32 mem_size) {
   if (mem_size <= 16 * KB) {
@@ -27,7 +26,7 @@ void init_mem(u32 mem_size) {
   mem->pt.free_page_num = mem->pt.len;
   mem->pool = memory_pool;
   mem->size = mem_size;
-  app.mem = mem;
+  g_mem = mem;
 
   for (u32 i = 0; i < mem->pt.len; i++) {
     mem->pt.pages[i].id = i;
@@ -41,24 +40,25 @@ void init_mem(u32 mem_size) {
     g_crit_error(MEM_ERROR, "Could not allocate pages!");
   }
 
-  if (sem_init(&app.mem->memory_s, 0, 1) != 0) {
+  if (sem_init(&g_mem->memory_s, 0, 1) != 0) {
     g_crit_error(SEMAPHORE_INIT_ERROR, "Memory semaphore failed to initialize")
   }
 
+  g_mem->initialized = true;
   g_info("%dB allocated for the app pool", (int)mem_size);
 }
 
 void clear_mem() {
-  if (!app.mem) {
+  if (!g_mem) {
     g_crit_error(MEM_ERROR, "There is no memory to be freed");
   }
 
-  int mem_size = app.mem->size;
+  int mem_size = g_mem->size;
 
-  free(app.mem->pt.pages);
-  free(app.mem->pt.free_stack);
-  free(app.mem->pool);
-  free(app.mem);
+  free(g_mem->pt.pages);
+  free(g_mem->pt.free_stack);
+  free(g_mem->pool);
+  free(g_mem);
 
   g_info("%dB deallocated", mem_size);
 }
@@ -67,42 +67,46 @@ void *g_alloc(u32 bytes) {
   if (bytes == 0)
     return NULL;
 
+  if (!g_mem || !g_mem->initialized) {
+    g_crit_error(MEM_ALLOC_FAIL, "Memory not initialized!");
+  }
+
   u32 num_pages = (bytes + sizeof(alloc_header) + PAGE_SIZE - 1) / PAGE_SIZE;
 
-  if (bytes >= app.mem->size) {
+  if (bytes >= g_mem->size) {
     g_error(MEM_ALLOC_FAIL,
             "greater chunk of memory than physical memory holds");
     return NULL;
   }
 
-  if (num_pages > app.mem->pt.free_page_num || num_pages > app.mem->pt.len) {
+  if (num_pages > g_mem->pt.free_page_num || num_pages > g_mem->pt.len) {
     g_warn(MEM_STATUS, "Not enough memory to allocate %d pages", num_pages);
-    while (num_pages > app.mem->pt.free_page_num) {
+    while (num_pages > g_mem->pt.free_page_num) {
       int not_used_page = second_chance();
       g_debug(MEM_STATUS, "Not used page %d", not_used_page);
       if (not_used_page == -1) {
         g_error(MEM_FULL, "Memory full even after page replacement!");
-        sem_post(&app.mem->memory_s);
+        sem_post(&g_mem->memory_s);
         return NULL;
       }
 
-      sem_wait(&app.mem->memory_s);
-      app.mem->pt.pages[not_used_page].free = true;
-      app.mem->pt.free_page_num++;
-      sem_post(&app.mem->memory_s);
+      sem_wait(&g_mem->memory_s);
+      g_mem->pt.pages[not_used_page].free = true;
+      g_mem->pt.free_page_num++;
+      sem_post(&g_mem->memory_s);
       push_free_stack(not_used_page);
     }
   }
 
-  sem_wait(&app.mem->memory_s);
+  sem_wait(&g_mem->memory_s);
   void *ptr = NULL;
-  for (u32 i = 0; i < app.mem->pt.len; i++) {
+  for (u32 i = 0; i < g_mem->pt.len; i++) {
     bool contiguos_region = true;
-    if (i + num_pages > app.mem->pt.len) {
+    if (i + num_pages > g_mem->pt.len) {
       break;
     }
     for (u32 j = i; j < i + num_pages; j++) {
-      if (!app.mem->pt.pages[j].free) {
+      if (!g_mem->pt.pages[j].free) {
         contiguos_region = false;
         break;
       }
@@ -110,12 +114,12 @@ void *g_alloc(u32 bytes) {
 
     if (!contiguos_region)
       continue;
-    ptr = (void*)((char*)app.mem->pool + (i * PAGE_SIZE));
-    app.mem->pt.free_page_num -= num_pages;
+    ptr = (void*)((char*)g_mem->pool + (i * PAGE_SIZE));
+    g_mem->pt.free_page_num -= num_pages;
     for (u32 j = i; j < i + num_pages; j++)
     {
-      app.mem->pt.pages[j].free = false;
-      app.mem->pt.pages[j].used = true;
+      g_mem->pt.pages[j].free = false;
+      g_mem->pt.pages[j].used = true;
     }
     alloc_header* h_ptr = ptr;
     h_ptr->id = i;
@@ -124,14 +128,14 @@ void *g_alloc(u32 bytes) {
   }
 
   if (!ptr) {
-    sem_post(&app.mem->memory_s);
+    sem_post(&g_mem->memory_s);
     g_crit_error(MEM_ALLOC_FAIL,
                  "Failed to allocate %d bytes of memory with %d pages", bytes,
                  num_pages);
     return NULL;
   }
 
-  sem_post(&app.mem->memory_s);
+  sem_post(&g_mem->memory_s);
   g_debug(MEM_STATUS, "Allocated %d pages for %d bytes in address %p", num_pages, bytes, ptr);
   return (void *)(char *)ptr + sizeof(alloc_header);
 }
@@ -167,29 +171,29 @@ void *g_realloc(void *curr_region, u32 bytes) {
   return buffer;
 }
 void push_free_stack(u32 i) {
-  if (app.mem->pt.free_stack_top < app.mem->pt.len) {
-    app.mem->pt.free_stack[app.mem->pt.free_stack_top++] = i;
+  if (g_mem->pt.free_stack_top < g_mem->pt.len) {
+    g_mem->pt.free_stack[g_mem->pt.free_stack_top++] = i;
   }
 }
 
 void g_dealloc(void *mem) {
-  sem_wait(&app.mem->memory_s);
+  sem_wait(&g_mem->memory_s);
   if (!mem) {
     g_error(MEM_DEALLOC_FAIL,
             "Trying to deallocate a non allocated memory region");
-    sem_post(&app.mem->memory_s);
+    sem_post(&g_mem->memory_s);
     return;
   }
 
   alloc_header *h_ptr = get_header(mem);
 
   for (u32 i = h_ptr->id; i < h_ptr->id + h_ptr->page_num; i++) {
-    app.mem->pt.pages[i].free = true;
+    g_mem->pt.pages[i].free = true;
     push_free_stack(i);
   }
 
-  app.mem->pt.free_page_num += h_ptr->page_num;
-  sem_post(&app.mem->memory_s);
+  g_mem->pt.free_page_num += h_ptr->page_num;
+  sem_post(&g_mem->memory_s);
 }
 
 alloc_header *get_header(void *ptr) {
@@ -197,16 +201,16 @@ alloc_header *get_header(void *ptr) {
 }
 
 float retrieve_free_mem_percentage(void) {
-  return (float)app.mem->pt.free_page_num / (float)app.mem->pt.len * 100.0f;
+  return (float)g_mem->pt.free_page_num / (float)g_mem->pt.len * 100.0f;
 }
 
 float retrieve_used_mem_percentage(void) {
   return 100.0f - retrieve_free_mem_percentage();
 }
 void print_page_table_status() {
-  for (u32 i = 0; i < app.mem->pt.len; i++) {
-    if (app.mem->pt.pages[i].p)
-      g_info("%d %d", i, app.mem->pt.pages[i].id);
+  for (u32 i = 0; i < g_mem->pt.len; i++) {
+    if (g_mem->pt.pages[i].p)
+      g_info("%d %d", i, g_mem->pt.pages[i].id);
   }
 }
 
@@ -214,18 +218,18 @@ bool is_mem_free(void *ptr) {
   if (!ptr)
     return true;
 
-  sem_wait(&app.mem->memory_s);
+  sem_wait(&g_mem->memory_s);
 
   alloc_header *h_ptr = get_header(ptr);
   bool is_free = true;
   for (u32 i = 0; i < h_ptr->page_num; i++) {
-    page *p = (page *)(char *)app.mem->pool + (i * PAGE_SIZE);
+    page *p = (page *)(char *)g_mem->pool + (i * PAGE_SIZE);
     if (!p->free) {
       is_free = false;
       break;
     }
   }
-  sem_post(&app.mem->memory_s);
+  sem_post(&g_mem->memory_s);
   return is_free;
 }
 
@@ -233,21 +237,21 @@ int second_chance() {
   static int i = 0;
   int curr = i;
 
-  sem_wait(&app.mem->memory_s);
+  sem_wait(&g_mem->memory_s);
   do {
     // g_info("Page %d", curr);
-    page *p = &app.mem->pt.pages[curr];
+    page *p = &g_mem->pt.pages[curr];
     if (!(p->used)) {
       p->used = false;
-      sem_post(&app.mem->memory_s);
-      return (i = (curr + 1) % app.mem->pt.len);
+      sem_post(&g_mem->memory_s);
+      return (i = (curr + 1) % g_mem->pt.len);
     }
     p->used = false;
     curr = (curr + 1) %
-           app.mem->pt.len; // Atualiza o valor da curr para a próxima página
+           g_mem->pt.len; // Atualiza o valor da curr para a próxima página
   } while (curr != i - 1); // Continua até voltar ao início da lista
-  i = (curr + 1) % app.mem->pt.len;
+  i = (curr + 1) % g_mem->pt.len;
 
-  sem_post(&app.mem->memory_s);
+  sem_post(&g_mem->memory_s);
   return -1;
 }

@@ -1,14 +1,13 @@
 #include "generic_queue.h"
 #include "../log/log.h"
 #include "../memory/mem.h"
-#include "../btree/btree.h"
 
-bool is_generic_queue_empty(generic_queue **gq) {
+bool is_gq_empty(generic_queue **gq) {
   if (gq && *gq) return false;
   return true;
 }
 
-static generic_queue *create_generic_queue_entry(void *data, u32 data_size) {
+generic_queue *create_generic_queue_entry(void *data, u32 data_size) {
   generic_queue *gq = g_alloc(sizeof(generic_queue));
 
   gq->data_size = data_size;
@@ -23,13 +22,13 @@ static generic_queue *create_generic_queue_entry(void *data, u32 data_size) {
   return gq;
 }
 
-bool init_generic_queue(generic_queue **gq, u32 data_size) {
+bool init_gq(generic_queue **gq, u32 data_size) {
   assert(data_size > 0);
   (*gq) = create_generic_queue_entry(NULL, data_size);
   return true;
 }
 
-bool push_generic_queue(generic_queue **gq, void *data) {
+bool push_gq(generic_queue **gq, void *data) {
   if (!gq || !*gq) {
     g_error(QUEUE_ERROR, "Queue not initialized (Head is NULL)");
     return false;
@@ -44,8 +43,8 @@ bool push_generic_queue(generic_queue **gq, void *data) {
   return true;
 }
 
-bool pop_generic_queue(generic_queue **gq, generic_queue *save_to) {
-  if (is_generic_queue_empty(gq)) return false;
+bool pop_gq(generic_queue **gq, generic_queue *save_to) {
+  if (is_gq_empty(gq)) return false;
 
   generic_queue *sentinel = *gq;
   generic_queue *node_to_remove = sentinel->next;
@@ -65,8 +64,8 @@ bool pop_generic_queue(generic_queue **gq, generic_queue *save_to) {
   return true;
 }
 
-generic_queue *top_generic_queue(generic_queue **gq) {
-  if (is_generic_queue_empty(gq)) {
+generic_queue *top_gq(generic_queue **gq) {
+  if (is_gq_empty(gq)) {
     g_error(QUEUE_EMPTY, "Trying to top a empty generic queue!");
     return NULL;
   }
@@ -77,20 +76,17 @@ generic_queue *top_generic_queue(generic_queue **gq) {
 void print_int_node(void *data) {
   printf("%d\n", *(int*)data);
 }
+
 void print_float_node(void *data) {
   printf("%f\n", *(float*)data);
 }
+
 void print_string_node(void *data) {
   printf("%s\n", (char*)data);
 }
 
-void print_gq_btree_node(void *data) {
-  btree_node buffer = *(btree_node*)data;
-  printf("%d\n", buffer.rrn);
-}
-
 void print_generic_queue(generic_queue **gq, print_callback_fn printer){
-  if (is_generic_queue_empty(gq)) {
+  if (is_gq_empty(gq)) {
     printf("Queue is empty\n");
     return;
   }
@@ -115,7 +111,7 @@ bool clear_gq(generic_queue **gq) {
   }
 
   generic_queue *helper = (*gq);
-  while (*gq) pop_generic_queue(gq, NULL);
+  while (*gq) pop_gq(gq, NULL);
 
   // helper is head
   g_dealloc(helper);

@@ -6,7 +6,6 @@
 typedef struct __generic_queue {
   void *data;
   void *next;
-  void *last;
   u32 data_size;
 } generic_queue;
 
@@ -24,7 +23,6 @@ typedef void (*print_callback_fn)(void *data);
 void print_int_node(void *data);
 void print_float_node(void *data);
 void print_string_node(void *data);
-void print_gq_btree_node(void *data);
 
 #define print_gq(gq, T) print_generic_queue(gq, _Generic((T){0}, \
     int:    print_int_node,    \

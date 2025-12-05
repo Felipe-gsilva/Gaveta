@@ -1,10 +1,11 @@
 #include "test.h"
 #include <assert.h>
+#include "../src/modules/memory/mem.h"
 
 static bool compare_ints(void *v1, void *v2) {
+  assert(v1 && v2);
   int *i1 = v1;
   int *i2 = v2;
-
   return *i2 == *i1;
 }
 
@@ -14,6 +15,7 @@ void test_queue_search(void) {
   init_gq(&gq, sizeof(int)); 
   int val1 = 6;
   int val2 = 8;
+  print_gq(&gq, int);
   push_gq(&gq, &val1);
   push_gq(&gq, &val2);
   generic_queue *entry = NULL;
@@ -38,3 +40,8 @@ void test_queue_search(void) {
   clear_gq(&gq2);
 }
 
+int main(void) {
+  init_mem(4 * MB);
+  test_queue_search();
+  return 0;
+}
