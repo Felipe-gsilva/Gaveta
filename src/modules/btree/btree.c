@@ -969,9 +969,10 @@ void create_index_file(io_buf *io, const char *file_name) {
 }
 
 btree_node *alloc_btree_node(u32 order) {
-  btree_node *p = NULL;
-  if (posix_memalign((void **)&p, sizeof(void *), sizeof(btree_node)) != 0) {
-    g_error(BTREE_ERROR, "Erro: falha na alocação da página");
+  btree_node *p = g_alloc(sizeof(btree_node));
+
+  if (!p) {
+    g_error(BTREE_ERROR, "Falha na alocação do nó da btree");
     return NULL;
   }
 

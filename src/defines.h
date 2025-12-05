@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#include "semaphore.h"
 
 // in bytes
 #define MAX_ADDRESS 4096

@@ -2,7 +2,6 @@
 #define _MEMORY
 
 #include "../../defines.h"
-#include "semaphore.h"
 
 #define MB 1048576
 #define KB 1024
@@ -26,7 +25,6 @@ typedef struct __page_table {
 } page_table;
 
 typedef struct __memory {
-  pthread_t render_t;
   sem_t memory_s;
   page_table pt;
   void *pool;
