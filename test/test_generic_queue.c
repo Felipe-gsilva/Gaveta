@@ -1,13 +1,5 @@
 #include "test_generic_queue.h"
 
-static bool compare_ints(void *v1, void *v2) {
-  assert(v1 && v2);
-  printf("Comparing %d and %d\n", *(int*)v1, *(int*)v2);
-  int *i1 = v1;
-  int *i2 = v2;
-  return *i2 == *i1;
-}
-
 bool test_generic_queue(void) {
   init_mem(4 * MB);
   // homogeneous data type

@@ -2,6 +2,7 @@
 #define __GENERIC_QUEUE_H
 
 #include "../../defines.h"
+#include "./ds_utils.h"
 
 typedef struct __GenericQueue {
   void *data;
@@ -20,10 +21,6 @@ bool clear_gq(GenericQueue **gq);
 bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void*, void*), GenericQueue **found_node);
 
 typedef void (*print_callback_fn)(void *data);
-
-void print_int_node(void *data);
-void print_float_node(void *data);
-void print_string_node(void *data);
 
 #define print_gq(gq, T) print_generic_queue(gq, _Generic((T){0}, \
     int:    print_int_node,    \

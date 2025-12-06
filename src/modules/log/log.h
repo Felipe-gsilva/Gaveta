@@ -39,6 +39,9 @@ typedef enum {
   QUEUE_STATUS = 700,
   QUEUE_ERROR = 701,
   QUEUE_EMPTY = 702,
+  LIST_STATUS = 800,
+  LIST_ERROR = 801,
+  LIST_EMPTY = 802,
 } status_code;
 
 // defining correct macros for logging

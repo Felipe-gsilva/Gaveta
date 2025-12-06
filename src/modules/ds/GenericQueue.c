@@ -82,18 +82,6 @@ GenericQueue *top_gq(GenericQueue **gq) {
   return (*gq)->next;
 }
 
-void print_int_node(void *data) {
-  printf("%d\n", *(int*)data);
-}
-
-void print_float_node(void *data) {
-  printf("%f\n", *(float*)data);
-}
-
-void print_string_node(void *data) {
-  printf("%s\n", (char*)data);
-}
-
 void print_generic_queue(GenericQueue **gq, print_callback_fn printer){
   if (is_gq_empty(gq)) {
     printf("Queue is empty\n");
