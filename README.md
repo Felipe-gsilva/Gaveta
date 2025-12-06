@@ -6,7 +6,7 @@ This project is based on a btree I already did implement in C. The ideia is to a
 
 - [ ] Generic Data Structures (such as BTree, HashTable, LinkedList, etc)
   - [X] GenericQueue
-  - [ ] GenericLinkedList
+  - [X] GenericLinkedList
   - [ ] GenericHashTable (with user given hash function)
 - [ ] BTree implementation/Refactor from the previous project
 - [ ] Schema creation
