@@ -11,21 +11,21 @@ static bool compare_ints(void *v1, void *v2) {
 
 void test_queue_search(void) {
   // homogeneous data type
-  generic_queue *gq = NULL;
+  GenericQueue *gq = NULL;
   init_gq(&gq, sizeof(int)); 
   int val1 = 6;
   int val2 = 8;
   print_gq(&gq, int);
   push_gq(&gq, &val1);
   push_gq(&gq, &val2);
-  generic_queue *entry = NULL;
+  GenericQueue *entry = NULL;
   search_gq(&gq, &val1, compare_ints, &entry);
   assert(*(int*)entry->data == 6);
   pop_gq(&gq, NULL);
   pop_gq(&gq, NULL);
 
   // heterogeneous data type
-  generic_queue *gq2 = NULL;
+  GenericQueue *gq2 = NULL;
   init_gq(&gq2, sizeof(btree_node)); 
   btree_node g = {.child_num = 0, .children= NULL, .keys = NULL, .leaf = 0, .next_leaf = 0, .rrn = 0};
   push_gq(&gq2, &g);

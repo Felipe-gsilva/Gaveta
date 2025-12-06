@@ -3,20 +3,20 @@
 
 #include "../../defines.h"
 
-typedef struct __generic_queue {
+typedef struct __GenericQueue {
   void *data;
   void *next;
   u32 data_size;
-} generic_queue;
+} GenericQueue;
 
-bool init_gq(generic_queue **gq, u32 data_size);
-bool push_gq(generic_queue **gq, void *data);
-bool pop_gq(generic_queue **gq, generic_queue *save_to);
+bool init_gq(GenericQueue **gq, u32 data_size);
+bool push_gq(GenericQueue **gq, void *data);
+bool pop_gq(GenericQueue **gq, GenericQueue *save_to);
 
-generic_queue *top_gq(generic_queue **gq);
-bool is_gq_empty(generic_queue **gq);
-bool clear_gq(generic_queue **gq);
-bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void*, void*), generic_queue **found_node);
+GenericQueue *top_gq(GenericQueue **gq);
+bool is_gq_empty(GenericQueue **gq);
+bool clear_gq(GenericQueue **gq);
+bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void*, void*), GenericQueue **found_node);
 
 typedef void (*print_callback_fn)(void *data);
 
@@ -31,5 +31,5 @@ void print_string_node(void *data);
     btree_node: print_gq_btree_node, \
     default: print_int_node))
 
-void print_generic_queue(generic_queue **gq, print_callback_fn printer);
+void print_generic_queue(GenericQueue **gq, print_callback_fn printer);
 #endif

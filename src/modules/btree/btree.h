@@ -81,7 +81,7 @@ typedef struct __free_rrn_list {
 typedef struct __b_tree_buf {
   btree_node *root;
   io_buf *io;
-  generic_queue *q;
+  GenericQueue *q;
   free_rrn_list *i;
   u32 order;
 } b_tree_buf;

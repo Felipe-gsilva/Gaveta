@@ -2,13 +2,13 @@
 #include "../log/log.h"
 #include "../memory/mem.h"
 
-bool is_gq_empty(generic_queue **gq) {
+bool is_gq_empty(GenericQueue **gq) {
   if (gq && *gq) return false;
   return true;
 }
 
-generic_queue *create_generic_queue_entry(void *data, u32 data_size) {
-  generic_queue *gq = g_alloc(sizeof(generic_queue));
+GenericQueue *create_generic_queue_entry(void *data, u32 data_size) {
+  GenericQueue *gq = g_alloc(sizeof(GenericQueue));
 
   gq->data_size = data_size;
   gq->next = NULL;
@@ -22,20 +22,20 @@ generic_queue *create_generic_queue_entry(void *data, u32 data_size) {
   return gq;
 }
 
-bool init_gq(generic_queue **gq, u32 data_size) {
+bool init_gq(GenericQueue **gq, u32 data_size) {
   assert(data_size > 0);
   (*gq) = create_generic_queue_entry(NULL, data_size);
   return true;
 }
 
-bool push_gq(generic_queue **gq, void *data) {
+bool push_gq(GenericQueue **gq, void *data) {
   if (!gq || !*gq) {
     g_error(QUEUE_ERROR, "Queue not initialized (Head is NULL)");
     return false;
   }
 
-  generic_queue *new_node = create_generic_queue_entry(data, (*gq)->data_size);
-  generic_queue *aux = *gq;
+  GenericQueue *new_node = create_generic_queue_entry(data, (*gq)->data_size);
+  GenericQueue *aux = *gq;
 
   while (aux->next != NULL) aux = aux->next;
 
@@ -43,11 +43,11 @@ bool push_gq(generic_queue **gq, void *data) {
   return true;
 }
 
-bool pop_gq(generic_queue **gq, generic_queue *save_to) {
+bool pop_gq(GenericQueue **gq, GenericQueue *save_to) {
   if (is_gq_empty(gq)) return false;
 
-  generic_queue *sentinel = *gq;
-  generic_queue *node_to_remove = sentinel->next;
+  GenericQueue *sentinel = *gq;
+  GenericQueue *node_to_remove = sentinel->next;
 
   if (save_to) {
     if (save_to->data == NULL) {
@@ -64,7 +64,7 @@ bool pop_gq(generic_queue **gq, generic_queue *save_to) {
   return true;
 }
 
-generic_queue *top_gq(generic_queue **gq) {
+GenericQueue *top_gq(GenericQueue **gq) {
   if (is_gq_empty(gq)) {
     g_error(QUEUE_EMPTY, "Trying to top a empty generic queue!");
     return NULL;
@@ -85,13 +85,13 @@ void print_string_node(void *data) {
   printf("%s\n", (char*)data);
 }
 
-void print_generic_queue(generic_queue **gq, print_callback_fn printer){
+void print_generic_queue(GenericQueue **gq, print_callback_fn printer){
   if (is_gq_empty(gq)) {
     printf("Queue is empty\n");
     return;
   }
 
-  generic_queue *aux = (*gq)->next;
+  GenericQueue *aux = (*gq)->next;
 
   int i = 0;
   while (aux != NULL) {
@@ -104,13 +104,13 @@ void print_generic_queue(generic_queue **gq, print_callback_fn printer){
   }
 }
 
-bool clear_gq(generic_queue **gq) {
+bool clear_gq(GenericQueue **gq) {
   if (!gq || !*gq) {
     g_warn(QUEUE_STATUS, "trying to dealocate a non allocated queue!");
     return false;
   }
 
-  generic_queue *helper = (*gq);
+  GenericQueue *helper = (*gq);
   while (*gq) pop_gq(gq, NULL);
 
   // helper is head
@@ -118,7 +118,7 @@ bool clear_gq(generic_queue **gq) {
   return true;
 }
 
-bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), generic_queue **found_node){
+bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void *, void *), GenericQueue **found_node){
   if (!*gq || is_gq_empty(gq)) {
     g_error(QUEUE_ERROR, "Trying to search in a empty queue");
     return false;
@@ -129,7 +129,7 @@ bool search_gq(generic_queue **gq, void *data, bool (*cmp_fn)(void *, void *), g
     return false;
   }
 
-  generic_queue *aux = (*gq)->next;
+  GenericQueue *aux = (*gq)->next;
 
   while (aux) {
     if (cmp_fn((*gq)->data, data)) {

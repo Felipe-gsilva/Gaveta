@@ -43,28 +43,35 @@ typedef enum {
   HEAP = 0x002,
 } segment;
 
-void init_mem(u32 mem_size);
+#define USE_GLOBAL_MEMORY_POOL NULL
+#define init_mem(mem_size) init_memory(USE_GLOBAL_MEMORY_POOL, mem_size)
+#define clear_memory() clear_mem(USE_GLOBAL_MEMORY_POOL)
+#define g_alloc(bytes) g_allocate(USE_GLOBAL_MEMORY_POOL, bytes)
+#define g_realloc(curr_region, bytes) g_reallocate(USE_GLOBAL_MEMORY_POOL, curr_region, bytes)
+#define g_dealloc(mem) g_deallocate(USE_GLOBAL_MEMORY_POOL, mem)
 
-void clear_mem();
+void init_memory(memory *mem_pool, u32 mem_size);
 
-void *g_alloc(u32 bytes);
+void clear_mem(memory *mem_pool);
 
-void *g_realloc(void *curr_region, u32 bytes);
+void *g_allocate(memory *mem_pool, u32 bytes);
+
+void *g_reallocate(memory *mem_pool, void *curr_region, u32 bytes);
 
 alloc_header *get_header(void *ptr);
 
-void g_dealloc(void *mem);
+void g_deallocate(memory *mem_pool, void *mem);
 
-void push_free_stack(u32 i);
+void push_free_stack(memory *mem_pool, u32 i);
 
-void print_page_table_status();
+void print_page_table_status(memory *mem_pool);
 
-bool is_mem_free(void *ptr);
+bool is_mem_free(memory *mem_pool, void *ptr);
 
-float retrieve_free_mem_percentage(void);
+float retrieve_free_mem_percentage(memory *mem_pool);
 
-float retrieve_used_mem_percentage(void);
+float retrieve_used_mem_percentage(memory *mem_pool);
 
-int second_chance();
+int second_chance(memory *mem_pool);
 
 #endif

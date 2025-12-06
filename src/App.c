@@ -37,9 +37,9 @@ void init_app(void) {
   app.b = alloc_tree_buf(app.b_cfg.order);
   app.ld = alloc_ilist();
   min_log_level = INFO;
-  if (app.idx && app.data)
-    return;
 
+  if (app.idx && app.data) 
+    return;
 
   g_crit_error(APP_ERROR, "Error while allocating APP_BUFFER");
 }
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
   //  write_index_header(app.b->io);
   //}
   // heterogeneous data type
-  generic_queue *gq2 = NULL;
+  GenericQueue *gq2 = NULL;
   init_gq(&gq2, sizeof(btree_node)); 
   btree_node g = {.child_num = 0, .children= NULL, .keys = NULL, .leaf = 0, .next_leaf = 0, .rrn = 0};
   push_gq(&gq2, &g);

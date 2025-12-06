@@ -64,7 +64,7 @@ void clear_tree_buf(b_tree_buf *b) {
     clear_io_buf(b->io);
     if (b->root) {
       btree_node *q_btree_node = g_alloc(sizeof(btree_node));
-      generic_queue *node = g_alloc(sizeof(generic_queue));
+      GenericQueue *node = g_alloc(sizeof(GenericQueue));
       search_gq(&b->q, &b->root, compare_btree_nodes, &node);
       if (node->data) q_btree_node = *(btree_node **)node->data;
       if (!q_btree_node) {
@@ -133,7 +133,7 @@ btree_node *load_btree_node(b_tree_buf *b, u16 rrn) {
   // TODO change because of RRN
   btree_node *bn = g_alloc(sizeof(btree_node));
   bn->rrn = rrn;
-  generic_queue *node = g_alloc(sizeof(generic_queue));
+  GenericQueue *node = g_alloc(sizeof(GenericQueue));
   search_gq(&b->q, &rrn, compare_btree_nodes, &node);
 
   bn = *(btree_node **)node->data;
