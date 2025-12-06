@@ -30,10 +30,9 @@ jobs:
 
     # ----------------------------------------------------------------
     # Windows Specific: Install modern MinGW (GCC) via MSYS2
-    # Required because C23 is very new and needs GCC 13/14+
     # ----------------------------------------------------------------
     - name: Setup MSYS2 (Windows only)
-      if: runner.os == 'Windows'
+      if: matrix.os == 'windows-latest'
       uses: msys2/setup-msys2@v2
       with:
         msystem: UCRT64
@@ -48,7 +47,7 @@ jobs:
     # Configure CMake
     # ----------------------------------------------------------------
     - name: Configure CMake
-      shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }} 
+      shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }} 
       run: >
         cmake -B build
         -G "${{ matrix.generator }}"
@@ -59,7 +58,7 @@ jobs:
     # Build
     # ----------------------------------------------------------------
     - name: Build
-      shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }} 
       run: cmake --build build --config Debug
 
     # ----------------------------------------------------------------
@@ -67,5 +66,5 @@ jobs:
     # ----------------------------------------------------------------
     - name: Test
       working-directory: build
-      shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }} 
       run: ctest --output-on-failure --build-config Debug
