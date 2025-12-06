@@ -5,12 +5,15 @@
 This project is based on a btree I already did implement in C. The ideia is to allow users to create schemas to interact with the generic data structures in the backend using transactions to ensure data integrity. You can see a plan of the project down below:
 
 - [ ] Generic Data Structures (such as BTree, HashTable, LinkedList, etc)
+  - [X] GenericQueue
+  - [ ] GenericLinkedList
+  - [ ] GenericHashTable (with user given hash function)
 - [ ] BTree implementation/Refactor from the previous project
 - [ ] Schema creation
 - [ ] Transactions
 - [ ] Query language parser
 - [ ] Study how to distribute it later on
-- [ ] many more things...
+- [ ] other things yet to come...
 
 ## Compiling
 
