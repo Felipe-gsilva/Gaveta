@@ -5,12 +5,7 @@ project(${project_name} VERSION 0.0.1)
 include(CTest)
 
 # This is a bad workaround for now. But it works.
-set(CMAKE_C_STANDARD_REQUIRED Tif(MSVC)
-    set(CMAKE_C_STANDARD 17)
-    add_compile_options(/std:clatest) 
-else()
-    set(CMAKE_C_STANDARD 23)
-endif()rue)
+set(CMAKE_C_STANDARD 17)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)

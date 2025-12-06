@@ -42,6 +42,8 @@ typedef enum {
   LIST_STATUS = 800,
   LIST_ERROR = 801,
   LIST_EMPTY = 802,
+  HASH_TABLE_STATUS = 900,
+  HASH_TABLE_ERROR = 901,
 } status_code;
 
 // defining correct macros for logging
