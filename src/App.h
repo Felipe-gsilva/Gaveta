@@ -3,7 +3,7 @@
 
 #include "modules/memory/mem.h"
 #include "modules/log/log.h"
-#include "modules/btree/btree.h"
+#include "modules/BTree/BTree.h"
 #include "modules/utils/utils.h"
 #include "modules/config/config.h"
 

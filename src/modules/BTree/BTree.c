@@ -1,4 +1,4 @@
-#include "btree.h"
+#include "BTree.h"
 #include "../memory/mem.h"
 #include "../log/log.h"
 

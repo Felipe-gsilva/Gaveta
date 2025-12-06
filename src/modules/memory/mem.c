@@ -53,7 +53,7 @@ void init_memory(memory *mem_pool, u32 mem_size) {
   g_info("%dB allocated for the app pool", (int)mem_size);
 }
 
-void clear_mem(memory *mem_pool) {
+void clear_memory(memory *mem_pool) {
   memory **target_mem_pool = &global_mem_pool;
   if (mem_pool) target_mem_pool = &mem_pool;
 

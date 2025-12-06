@@ -45,14 +45,14 @@ typedef enum {
 
 #define USE_GLOBAL_MEMORY_POOL NULL
 #define init_mem(mem_size) init_memory(USE_GLOBAL_MEMORY_POOL, mem_size)
-#define clear_memory() clear_mem(USE_GLOBAL_MEMORY_POOL)
+#define clear_mem() clear_memory(USE_GLOBAL_MEMORY_POOL)
 #define g_alloc(bytes) g_allocate(USE_GLOBAL_MEMORY_POOL, bytes)
 #define g_realloc(curr_region, bytes) g_reallocate(USE_GLOBAL_MEMORY_POOL, curr_region, bytes)
 #define g_dealloc(mem) g_deallocate(USE_GLOBAL_MEMORY_POOL, mem)
 
 void init_memory(memory *mem_pool, u32 mem_size);
 
-void clear_mem(memory *mem_pool);
+void clear_memory(memory *mem_pool);
 
 void *g_allocate(memory *mem_pool, u32 bytes);
 

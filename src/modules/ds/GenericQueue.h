@@ -5,8 +5,9 @@
 
 typedef struct __GenericQueue {
   void *data;
-  void *next;
   u32 data_size;
+  struct __GenericQueue *next;
+  struct __GenericQueue *tail;
 } GenericQueue;
 
 bool init_gq(GenericQueue **gq, u32 data_size);

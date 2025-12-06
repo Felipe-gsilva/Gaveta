@@ -2,10 +2,12 @@
 #define _TEST
 
 #include "../src/defines.h"
-#include "../src/modules/ds/generic_queue.h"
-#include "../src/modules/btree/btree.h"
+#include "../src/modules/ds/GenericQueue.h"
+#include "../src/modules/BTree/BTree.h"
 
-void test_queue_search(void);
+bool test_queue_search(void);
+
+bool test_memory_allocation(void);
 
 int main(void);
 #endif

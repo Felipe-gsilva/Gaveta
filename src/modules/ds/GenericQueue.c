@@ -1,9 +1,9 @@
-#include "generic_queue.h"
+#include "GenericQueue.h"
 #include "../log/log.h"
 #include "../memory/mem.h"
 
 bool is_gq_empty(GenericQueue **gq) {
-  if (gq && *gq) return false;
+  if (*gq && (*gq)->next) return false;
   return true;
 }
 
@@ -12,6 +12,7 @@ GenericQueue *create_generic_queue_entry(void *data, u32 data_size) {
 
   gq->data_size = data_size;
   gq->next = NULL;
+  gq->tail = NULL;
   if (data != NULL) {
     gq->data = g_alloc(data_size);
     memcpy(gq->data, data, data_size);
@@ -25,21 +26,27 @@ GenericQueue *create_generic_queue_entry(void *data, u32 data_size) {
 bool init_gq(GenericQueue **gq, u32 data_size) {
   assert(data_size > 0);
   (*gq) = create_generic_queue_entry(NULL, data_size);
+  (*gq)->tail = *gq;
   return true;
 }
 
 bool push_gq(GenericQueue **gq, void *data) {
   if (!gq || !*gq) {
-    g_error(QUEUE_ERROR, "Queue not initialized (Head is NULL)");
+    g_error(QUEUE_ERROR, "Queue not initialized");
     return false;
   }
 
   GenericQueue *new_node = create_generic_queue_entry(data, (*gq)->data_size);
-  GenericQueue *aux = *gq;
+  if (!new_node || !new_node->data) {
+    g_error(QUEUE_ERROR, "Could not create new generic queue node");
+    return false;
+  }
 
-  while (aux->next != NULL) aux = aux->next;
+  GenericQueue *sentinel = *gq;
+  sentinel->tail->next = new_node;
 
-  aux->next = new_node;
+  sentinel->tail = new_node;
+
   return true;
 }
 
@@ -58,6 +65,8 @@ bool pop_gq(GenericQueue **gq, GenericQueue *save_to) {
   }
 
   sentinel->next = node_to_remove->next;
+  if (sentinel->next == NULL) sentinel->tail = sentinel;
+
   if (node_to_remove->data) g_dealloc(node_to_remove->data);
   g_dealloc(node_to_remove);
 
@@ -111,9 +120,8 @@ bool clear_gq(GenericQueue **gq) {
   }
 
   GenericQueue *helper = (*gq);
-  while (*gq) pop_gq(gq, NULL);
+  while (!is_gq_empty(gq)) pop_gq(gq, NULL);
 
-  // helper is head
   g_dealloc(helper);
   return true;
 }
@@ -131,8 +139,13 @@ bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void *, void *), Ge
 
   GenericQueue *aux = (*gq)->next;
 
-  while (aux) {
-    if (cmp_fn((*gq)->data, data)) {
+  if (!aux) {
+    g_warn(QUEUE_STATUS, "Queue is empty");
+    return false;
+  }
+
+  while (aux != NULL) {
+    if (cmp_fn(aux->data, data)) {
       if (found_node) *found_node = aux;
       g_debug(QUEUE_STATUS, "Found queue entry with same data");
       return true;

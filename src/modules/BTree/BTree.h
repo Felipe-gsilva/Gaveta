@@ -2,7 +2,7 @@
 #define __BTREE_H__
 
 #include "../../defines.h"
-#include "../ds/generic_queue.h"
+#include "../ds/GenericQueue.h"
 
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
