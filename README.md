@@ -9,7 +9,9 @@ This project is based on a btree I already did implement in C. The ideia is to a
   - [X] GenericLinkedList
   - [ ] GenericHashTable (with user given hash function)
 - [ ] BTree implementation/Refactor from the previous project
-- [ ] Schema creation
+  - [ ] free rrn list to GenericLinkedList
+  - [ ] btree_node queue (fifo impl for memory swap) to GenericQueue 
+  - [ ] Schema creation
 - [ ] Transactions
 - [ ] Query language parser
 - [ ] Study how to distribute it later on
