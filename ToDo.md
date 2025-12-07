@@ -1,0 +1,16 @@
+- [ ] Generic Data Structures (such as BTree, HashTable, LinkedList, etc)
+  - [X] GenericQueue
+  - [X] GenericLinkedList
+  - [ ] GenericStack
+  - [ ] GenericHashTable (with user given hash function)
+  - [ ] GenericDynamicArray (rewrite from previous project)
+- [ ] BTree+ Implementation/Refactor from the previous project
+  - [ ] Refactor to use Generic Data Structures
+  - [ ] Export API to use BTree+
+  - [ ] Upgrade caching layer (curr using FIFO)
+- [ ] Query language parser
+- [ ] Transactions
+- [ ] Schema creation
+- [ ] Study how to distribute it later on
+- [ ] other things yet to come...
+- [ ] Write tests for everything
