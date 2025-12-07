@@ -14,21 +14,6 @@ bool set_envvar(const char *mode) {
   return false;
 }
 
-void get_id(int i, char *first_key) {
-  assert(strlen(first_key) > 0);
-
-  if (i >= 3) {
-    puts("Many tries");
-    return;
-  }
-  puts("Digite a first_key");
-  scanf("%s", first_key);
-  if (strlen(first_key) != 7) {
-    puts("!!Wrong size mate");
-    get_id(i + 1, first_key);
-  }
-}
-
 void init_app(void) {
   read_btree_config();
   init_mem(MB * 16);
@@ -81,23 +66,23 @@ int main(int argc, char **argv) {
   g_dealloc(data_file);
   g_dealloc(index_file);
 
-  // load_list(app.b->i, app.b->io->br->free_rrn_address);
-  // load_list(app.ld, app.data->hr->free_rrn_address);
+  load_list(app.b->i, app.b->io->br->free_rrn_address);
+  load_list(app.ld, app.data->hr->free_rrn_address);
 
-  // btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
-  // app.b->root = temp;
+  btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
+  app.b->root = temp;
 
-  // if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
-  //   insert_list(app.b->i, 0);
-  //   build_tree(app.b, app.data, n);
+  if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
+     insert_list(app.b->i, 0);
+     build_tree(app.b, app.data, n);
 
-  //  if (app.debug)
-  //    print_queue(app.b->q);
+    print_gq(&app.b->q, btree_node);
 
-  //  insert_list(app.ld, n + 1);
-  //  app.b->io->br->root_rrn = app.b->root->rrn;
-  //  write_index_header(app.b->io);
-  //}
+    insert_list(app.ld, n + 1);
+    app.b->io->br->root_rrn = app.b->root->rrn;
+    write_index_header(app.b->io);
+  }
+
   // heterogeneous data type
   GenericQueue *gq2 = NULL;
   init_gq(&gq2, sizeof(btree_node));
