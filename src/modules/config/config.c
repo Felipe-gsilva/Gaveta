@@ -18,7 +18,7 @@ bool read_btree_config() {
   // load cfg
   while(!feof(fp)) {
     fscanf(fp, "%s: %s\n", key, value);
-    if (strcmp(key, "order") == 0) 
+    if (strcmp(key, "\"order\"") == 0) 
       cfg.order = atoi(value);
   };
 

@@ -38,7 +38,7 @@ void init_app(void) {
   app.ld = alloc_ilist();
   min_log_level = INFO;
 
-  if (app.idx && app.data) 
+  if (app.idx && app.data)
     return;
 
   g_crit_error(APP_ERROR, "Error while allocating APP_BUFFER");
@@ -87,9 +87,9 @@ int main(int argc, char **argv) {
   // btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
   // app.b->root = temp;
 
-  //if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
-  //  insert_list(app.b->i, 0);
-  //  build_tree(app.b, app.data, n);
+  // if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
+  //   insert_list(app.b->i, 0);
+  //   build_tree(app.b, app.data, n);
 
   //  if (app.debug)
   //    print_queue(app.b->q);
@@ -100,20 +100,23 @@ int main(int argc, char **argv) {
   //}
   // heterogeneous data type
   GenericQueue *gq2 = NULL;
-  init_gq(&gq2, sizeof(btree_node)); 
-  btree_node g = {.child_num = 0, .children= NULL, .keys = NULL, .leaf = 0, .next_leaf = 0, .rrn = 0};
+  init_gq(&gq2, sizeof(btree_node));
+  btree_node g = {.child_num = 0,
+                  .children = NULL,
+                  .keys = NULL,
+                  .leaf = 0,
+                  .next_leaf = 0,
+                  .rrn = 0};
   push_gq(&gq2, &g);
   print_gq(&gq2, btree_node);
   push_gq(&gq2, &g);
   search_gq(&gq2, &g, compare_btree_nodes, NULL);
-
 
   pop_gq(&gq2, NULL);
   print_gq(&gq2, btree_node);
   pop_gq(&gq2, NULL);
   print_gq(&gq2, btree_node);
   clear_gq(&gq2);
-
 
   clear_app();
   return 0;

@@ -3,3 +3,6 @@
 build
 target
 *.o
+assets/**/*.idx
+assets/**/*.hlp
+assets/**/*.dat

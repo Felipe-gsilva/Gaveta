@@ -1,0 +1,19 @@
+[{
+    "btree_name": "Thing",
+    "order": 32,
+    "schema": {
+      "id": "number",
+      "name": "string",
+      "value": "number"
+    },
+},
+  {
+    "btree_name": "User",
+    "order": 16,
+    "schema": {
+      "user_id": "number",
+      "username": "string",
+      "email": "string"
+    }
+  }
+]
