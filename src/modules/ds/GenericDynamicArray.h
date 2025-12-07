@@ -21,5 +21,6 @@ int darray_set(DynamicArray *array, size_t index, const void *element);
 u32 darray_size(const DynamicArray *array);
 u32 darray_capacity(const DynamicArray *array);
 int darray_get_last(const DynamicArray *array, void *out_element);
+bool export_da_to_disk(const DynamicArray *array);
 
 #endif

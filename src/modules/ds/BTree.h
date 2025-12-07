@@ -3,6 +3,7 @@
 
 #include "../../defines.h"
 #include "./GenericQueue.h"
+#include "./GenericLinkedList.h"
 
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
@@ -21,7 +22,7 @@ typedef enum {
 // structs
 typedef struct __key {
   u16 data_register_rrn;
-  char *id;
+  void *id;
 } key;
 
 typedef struct __key_range {
@@ -30,15 +31,14 @@ typedef struct __key_range {
 } key_range;
 
 typedef struct __btree_node {
-key *keys;
+  key *keys;
   u16 rrn;
   u16 *children;
   u16 next_leaf;
   u8 child_num;
   u8 keys_num;
   u8 leaf;
-}
-btree_node;
+} btree_node;
 
 typedef struct __queue {
   struct __queue *next;
@@ -74,7 +74,8 @@ typedef struct __io_buf {
 
 typedef struct __free_rrn_list {
   io_buf *io;
-  u16 *free_rrn;
+  // u16 *free_rrn;
+  GenericLinkedList *gql;
   u16 n;
 } free_rrn_list;
 
@@ -154,6 +155,7 @@ bool compare_btree_nodes(void *v1, void *v2);
 bool clear_all_btree_nodes(void);
 
 void track_btree_node(btree_node *p);
+
 free_rrn_list *alloc_ilist(void);
 
 bool clear_ilist(free_rrn_list *i);

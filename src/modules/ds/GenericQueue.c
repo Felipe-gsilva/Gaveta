@@ -50,18 +50,17 @@ bool push_gq(GenericQueue **gq, void *data) {
   return true;
 }
 
-bool pop_gq(GenericQueue **gq, GenericQueue *save_to) {
+bool pop_gq(GenericQueue **gq, void *save_to) {
   if (is_gq_empty(gq)) return false;
 
   GenericQueue *sentinel = *gq;
   GenericQueue *node_to_remove = sentinel->next;
 
   if (save_to) {
-    if (save_to->data == NULL) {
-      save_to->data = g_alloc(sentinel->data_size);
+    if (save_to == NULL) {
+      save_to = g_alloc(sentinel->data_size);
     }
-    memcpy(save_to->data, node_to_remove->data, node_to_remove->data_size);
-    save_to->data_size = node_to_remove->data_size;
+    memcpy(save_to, node_to_remove->data, node_to_remove->data_size);
   }
 
   sentinel->next = node_to_remove->next;

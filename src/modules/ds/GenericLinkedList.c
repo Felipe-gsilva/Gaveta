@@ -42,18 +42,17 @@ bool insert_ll(GenericLinkedList **ll, void *data) {
   return true;
 }
 
-bool remove_ll(GenericLinkedList **ll, GenericLinkedList *save_to) {
+bool remove_ll(GenericLinkedList **ll, void *save_to) {
   if (is_ll_empty(ll)) return false;
 
   GenericLinkedList *sentinel = *ll;
   GenericLinkedList *node_to_remove = sentinel->next;
 
   if (save_to) {
-    if (save_to->data == NULL) {
-      save_to->data = g_alloc(sentinel->data_size);
+    if (save_to == NULL) {
+      save_to = g_alloc(sentinel->data_size);
     }
-    memcpy(save_to->data, node_to_remove->data, node_to_remove->data_size);
-    save_to->data_size = node_to_remove->data_size;
+    memcpy(save_to, node_to_remove->data, node_to_remove->data_size);
   }
 
   sentinel->next = node_to_remove->next;
@@ -113,7 +112,7 @@ bool search_ll(GenericLinkedList **ll, void *data, bool (*cmp_fn)(void*, void*),
 }
 
 
-void print_generic_LinkedList(GenericLinkedList **ll, print_callback_fn printer) {
+void print_generic_linkedlist(GenericLinkedList **ll, print_callback_fn printer) {
   if (is_ll_empty(ll)) {
     printf("LinkedList is empty\n");
     return;
@@ -130,4 +129,26 @@ void print_generic_LinkedList(GenericLinkedList **ll, print_callback_fn printer)
     aux = aux->next;
     i++;
   }
+}
+
+bool export_ll_to_disk(GenericLinkedList **ll, char* path, write_fallback_fn fn) {
+  if (is_ll_empty(ll)) {
+    g_error(LIST_ERROR, "LinkedList is empty. Nothing to write!");
+    return false;
+  }
+
+  FILE *fp = fopen(path, "w");
+  if (!fp) {
+    g_error(LIST_ERROR, "Could not write LinkedList to file");
+    return false;
+  }
+
+  GenericLinkedList *aux = (*ll)->next;
+
+  while(aux) {
+    fn(fp, aux->data);
+  }
+
+  fclose(fp);
+  return true;
 }

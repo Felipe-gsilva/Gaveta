@@ -189,15 +189,17 @@ int write_root_rrn(b_tree_buf *b, u16 rrn) {
 }
 
 void b_update(b_tree_buf *b, io_buf *data, free_rrn_list *ld,
-              const char *placa) {}
+              const char *placa) {
+ // TODO
 
-btree_node *b_search(b_tree_buf *b, const char *s, u16 *return_pos) {
-  if (!b || !b->root || !s)
+}
+
+btree_node *b_search(b_tree_buf *b, const char *query_key, u16 *return_pos) {
+  if (!b || !b->root || !query_key)
     return NULL;
 
   key k;
-  strncpy(k.id, s, 1); // TODO key size minus null terminator
-  k.id[/* TODO */ 0] = '\0';
+  sprintf((char *)k.id, "%s", query_key);
 
   btree_node *found_btree_node = NULL;
   *return_pos = search_key(b, b->root, k, return_pos, &found_btree_node);
@@ -273,7 +275,7 @@ int search_in_btree_node(btree_node *p, key key, int *return_pos) {
   }
 
   for (int i = 0; i < p->keys_num; i++) {
-    if (p->keys[i].id[0] == '\0') {
+    if (((char*)p->keys[i].id)[0] == '\0') {
       *return_pos = i;
       return BTREE_NOT_FOUND_KEY;
     }
@@ -1140,7 +1142,8 @@ free_rrn_list *alloc_ilist(void) {
     exit(-1);
   i->io = alloc_io_buf();
   i->n = 0;
-  i->free_rrn = NULL;
+  // i->free_rrn = NULL;
+  init_ll(&i->gql, sizeof(u16)); // TODO change this default u16 key into a generic one
   return i;
 }
 
@@ -1153,10 +1156,11 @@ bool clear_ilist(free_rrn_list *i) {
     i->io->fp = NULL;
   }
 
-  g_dealloc(i->free_rrn);
-  i->free_rrn = NULL;
+  // g_dealloc(i->free_rrn);
+  // i->free_rrn = NULL;
 
   clear_io_buf(i->io);
+  clear_ll(&i->gql);
   g_dealloc(i);
   return true;
 }
@@ -1165,11 +1169,6 @@ bool load_list(free_rrn_list *i, char *s) {
   if (!i || !s) {
     g_error(BTREE_ERROR, "Error: Invalid parameters");
     return false;
-  }
-
-  if (i->free_rrn) {
-    g_dealloc(i->free_rrn);
-    i->free_rrn = NULL;
   }
 
   if (!i->io) {
@@ -1185,22 +1184,18 @@ bool load_list(free_rrn_list *i, char *s) {
 
   i->io->fp = fopen(i->io->address, "r+b");
   if (!i->io->fp) {
-    printf("Creating new RRN list file: %s\n", s);
+    g_info("Creating new RRN list file: %s\n", s);
     i->io->fp = fopen(i->io->address, "wb");
     if (!i->io->fp) {
       printf("!!Error: Cannot create file %s\n", s);
       return false;
     }
     i->n = 1;
-    i->free_rrn = g_alloc(sizeof(u16));
-    if (!i->free_rrn) {
-      g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-      fclose(i->io->fp);
-      return false;
-    }
-    i->free_rrn[0] = 0;
+    int k = 0;
+    insert_ll(&i->gql, &k);
+
     fwrite(&i->n, sizeof(u16), 1, i->io->fp);
-    fwrite(i->free_rrn, sizeof(u16), i->n, i->io->fp);
+    export_ll(&i->gql, i->io->address, int);
     fclose(i->io->fp);
     i->io->fp = fopen(i->io->address, "r+b");
   }
@@ -1209,56 +1204,28 @@ bool load_list(free_rrn_list *i, char *s) {
   size_t read = fread(&i->n, sizeof(u16), 1, i->io->fp);
   if (read != 1) {
     i->n = 1;
-    i->free_rrn = g_alloc(sizeof(u16));
-    if (!i->free_rrn) {
-      g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-      return false;
-    }
-    i->free_rrn[0] = 0;
+    int k = 0;
+    insert_ll(&i->gql, &k);
     fseek(i->io->fp, 0, SEEK_SET);
     fwrite(&i->n, sizeof(u16), 1, i->io->fp);
-    fwrite(i->free_rrn, sizeof(u16), i->n, i->io->fp);
+    export_ll(&i->gql, i->io->address, int);
+    
   } else if (i->n > 0) {
-    i->free_rrn = load_rrn_list(i);
-    if (!i->free_rrn) {
+    // change to initialize gql from disk
+    // i->free_rrn = load_rrn_list(i);
+    if (is_ll_empty(&i->gql)) {
       i->n = 1;
-      i->free_rrn = g_alloc(sizeof(u16));
-      if (!i->free_rrn) {
-        g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-        return false;
-      }
-      i->free_rrn[0] = 0;
+      int k = 0;
+      insert_ll(&i->gql, &k);
       fseek(i->io->fp, 0, SEEK_SET);
       fwrite(&i->n, sizeof(u16), 1, i->io->fp);
-      fwrite(i->free_rrn, sizeof(u16), i->n, i->io->fp);
+      export_ll(&i->gql, i->io->address, int);
     }
   }
 
   fflush(i->io->fp);
   g_info("Loaded RRN list with %d entries", i->n);
   return true;
-}
-
-u16 *load_rrn_list(free_rrn_list *i) {
-  if (!i->io->fp || i->n == 0)
-    return NULL;
-
-  u16 *list = g_alloc(sizeof(u16) * i->n);
-  if (!list) {
-    g_error(BTREE_ERROR, "Error: memory allocation failed");
-    return NULL;
-  }
-
-  fseek(i->io->fp, sizeof(u16), SEEK_SET);
-  size_t read = fread(list, sizeof(u16), i->n, i->io->fp);
-
-  if (read != i->n) {
-    g_dealloc(list);
-    printf("!!Error: Expected to read %d elements, but read %zu\n", i->n, read);
-    return NULL;
-  }
-
-  return list;
 }
 
 u16 get_free_rrn(free_rrn_list *i) {
@@ -1271,6 +1238,7 @@ u16 get_free_rrn(free_rrn_list *i) {
   i->free_rrn = load_rrn_list(i);
 
   if (!i->free_rrn || i->n == 0) {
+    // TODO rewrite this to a default initializing fn
     g_error(BTREE_ERROR, "Error: No free RRNs available; initializing with default");
     i->n = 1;
     i->free_rrn = g_alloc(sizeof(u16));
@@ -1283,12 +1251,11 @@ u16 get_free_rrn(free_rrn_list *i) {
     return 0;
   }
 
-  int rrn = i->free_rrn[0];
+  int rrn;
+  remove_ll(&i->gql, &rrn);
   i->n--;
 
-  if (i->n > 0)
-    memmove(i->free_rrn, i->free_rrn + 1, sizeof(u16) * i->n);
-
+  // TODO update this
   if (i->n < 1) {
     u16 new_rrn = rrn + 1;
     while (rrn_exists(i->free_rrn, i->n, new_rrn))

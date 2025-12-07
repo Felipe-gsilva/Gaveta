@@ -6,6 +6,7 @@
 #include "modules/ds/BTree.h"
 #include "modules/utils/utils.h"
 #include "modules/config/config.h"
+#include "modules/ds/GenericDynamicArray.h"
 
 typedef struct __App  {
   io_buf *idx;
@@ -13,6 +14,7 @@ typedef struct __App  {
   b_tree_buf *b;
   free_rrn_list *ld;
   btree_config b_cfg;
+  DynamicArray *btrees;
 } App;
 
 void cli();
