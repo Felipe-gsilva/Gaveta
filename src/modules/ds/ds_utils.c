@@ -53,3 +53,18 @@ void write_string_node(FILE *fp, void *data) {
   assert((int*)data && fp);
   fprintf(fp, "%d\n", *(int*)data);
 }
+
+void read_int_node(FILE *fp, void *data) {
+  assert((int*)data && fp);
+  fscanf(fp, "%d\n", (int*)data);
+}
+
+void read_float_node(FILE *fp, void *data) {
+  assert((float*)data && fp);
+  fscanf(fp, "%f\n", (float*)data);
+}
+
+void read_string_node(FILE *fp, void *data) {
+  assert((char*)data && fp);
+  fscanf(fp, "%s\n", (char*)data);
+}

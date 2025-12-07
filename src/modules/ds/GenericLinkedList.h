@@ -24,13 +24,14 @@ bool export_ll_to_disk(GenericLinkedList **ll, char* path, write_fallback_fn fn)
 bool read_ll_from_disk(GenericLinkedList **ll, char* path, read_fallback_fn fn);
 void print_generic_linkedlist(GenericLinkedList **ll, print_callback_fn printer);
 
-#define print_ll(ll, T) print_generic_linkedlist(ll, _Generic((T){0}, \
-    int:    print_int_node,    \
-    float:  print_float_node,  \
-    char*:  print_string_node, \
-    btree_node: print_ll_btree_node, \
-    void*:  (T){0}, \
-    default: print_int_node))
+#define print_ll(ll, T) print_generic_linkedlist(ll, \
+    _Generic((T){0}, \
+      int:    print_int_node,    \
+      float:  print_float_node,  \
+      char*:  print_string_node, \
+      btree_node: print_gq_btree_node, \
+      void*: (T){0}, \
+      default: print_int_node))
 
 #define export_ll(ll,  path, T) export_ll_to_disk(ll, path, \
     _Generic((T){0}, \
@@ -39,6 +40,14 @@ void print_generic_linkedlist(GenericLinkedList **ll, print_callback_fn printer)
       char*:  write_string_node, \
       void*: (T){0}, \
       default: write_int_node ))
+
+#define read_ll(ll, path, T) read_ll_from_disk(ll, path, \
+    _Generic((T){0}, \
+      int:    read_int_node,    \
+      float:  read_float_node,  \
+      char*:  read_string_node, \
+      void*: (T){0}, \
+      default: read_int_node ))
 
 void print_generic_LinkedList(GenericLinkedList **ll, print_callback_fn printer);
 #endif

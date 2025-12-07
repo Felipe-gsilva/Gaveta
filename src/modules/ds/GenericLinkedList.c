@@ -152,3 +152,26 @@ bool export_ll_to_disk(GenericLinkedList **ll, char* path, write_fallback_fn fn)
   fclose(fp);
   return true;
 }
+
+bool read_ll_from_disk(GenericLinkedList **ll, char* path, read_fallback_fn fn) {
+  if (!ll || !*ll) {
+    g_error(LIST_ERROR, "Trying to read into a non initialized LinkedList");
+    return false;
+  }
+
+  FILE *fp = fopen(path, "r");
+  if (!fp) {
+    g_error(LIST_ERROR, "Could not open file to read LinkedList");
+    return false;
+  }
+
+  while (!feof(fp)) {
+    void *data = g_alloc((*ll)->data_size);
+    fn(fp, data);
+    insert_ll(ll, data);
+    g_dealloc(data);
+  }
+
+  fclose(fp);
+  return true;
+}

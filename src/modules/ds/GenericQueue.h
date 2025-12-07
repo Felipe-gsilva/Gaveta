@@ -23,6 +23,7 @@ bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void*, void*), Gene
 // external
 bool export_gq_to_disk(GenericQueue **ll, char* path, write_fallback_fn fn);
 bool read_gq_from_disk(GenericQueue **ll, char* path, read_fallback_fn fn);
+void print_generic_queue(GenericQueue **gq, print_callback_fn printer);
 
 #define print_gq(gq, T) print_generic_queue(gq, _Generic((T){0}, \
     int:    print_int_node,    \
@@ -32,5 +33,20 @@ bool read_gq_from_disk(GenericQueue **ll, char* path, read_fallback_fn fn);
     void*: (T){0}, \
     default: print_int_node))
 
-void print_generic_queue(GenericQueue **gq, print_callback_fn printer);
+#define export_gq(gq,  path, T) export_gq_to_disk(gq, path, \
+    _Generic((T){0}, \
+      int:    write_int_node,    \
+      float:  write_float_node,  \
+      char*:  write_string_node, \
+      void*: (T){0}, \
+      default: write_int_node ))
+
+#define read_gq(gq, path, T) read_gq_from_disk(gq, path, \
+    _Generic((T){0}, \
+      int:    read_int_node,    \
+      float:  read_float_node,  \
+      char*:  read_string_node, \
+      void*: (T){0}, \
+      default: read_int_node ))
+
 #endif

@@ -22,4 +22,8 @@ void write_int_node(FILE *fp, void *data);
 void write_float_node(FILE *fp, void *data);
 void write_string_node(FILE *fp, void *data);
 
+void read_int_node(FILE *fp, void *data);
+void read_float_node(FILE *fp, void *data);
+void read_string_node(FILE *fp, void *data);
+
 #endif

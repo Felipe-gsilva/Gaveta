@@ -143,3 +143,49 @@ bool search_gq(GenericQueue **gq, void *data, bool (*cmp_fn)(void *, void *), Ge
   g_warn(QUEUE_STATUS, "Could not find entry in queue");
   return false;
 }
+
+bool export_gq_to_disk(GenericQueue **gq, char* path, write_fallback_fn fn) {
+  if (!gq || !*gq) {
+    g_error(QUEUE_ERROR, "Trying to export a non initialized queue");
+    return false;
+  }
+
+  FILE *fp = fopen(path, "wb");
+  if (!fp) {
+    g_error(QUEUE_ERROR, "Could not open file to export queue");
+    return false;
+  }
+
+  GenericQueue *aux = (*gq)->next;
+
+  while (aux != NULL) {
+    fn(fp, aux->data);
+    aux = aux->next;
+  }
+
+  fclose(fp);
+  return true;
+}
+
+bool read_gq_from_disk(GenericQueue **gq, char* path, read_fallback_fn fn) {
+  if (!gq || !*gq) {
+    g_error(QUEUE_ERROR, "Trying to read into a non initialized queue");
+    return false;
+  }
+
+  FILE *fp = fopen(path, "rb");
+  if (!fp) {
+    g_error(QUEUE_ERROR, "Could not open file to read queue");
+    return false;
+  }
+
+  while (!feof(fp)) {
+    void *data = g_alloc((*gq)->data_size);
+    fn(fp, data);
+    push_gq(gq, data);
+    g_dealloc(data);
+  }
+
+  fclose(fp);
+  return true;
+}

@@ -747,7 +747,7 @@ void print_btree_node(btree_node *p) {
 
   printf("Chaves: ");
   for (int i = 0; i < p->keys_num; i++) {
-    printf("[%s]", p->keys[i].id);
+    printf("[%s]", (char*)p->keys[i].id);
   }
   printf("\n");
 
@@ -1089,25 +1089,6 @@ void sort_list(u16 A[], int n) {
   }
 }
 
-bool rrn_exists(u16 A[], int n, int rrn) {
-  if (!A || n <= 0)
-    return false;
-
-  int left = 0;
-  int right = n - 1;
-
-  while (left <= right) {
-    int mid = (left + right) / 2;
-    if (A[mid] == rrn)
-      return true;
-    if (A[mid] < rrn)
-      left = mid + 1;
-    else
-      right = mid - 1;
-  }
-  return false;
-}
-
 void write_rrn_list_to_file(free_rrn_list *i) {
   if (!i || !i->io->fp)
     return;
@@ -1118,13 +1099,9 @@ void write_rrn_list_to_file(free_rrn_list *i) {
       g_error(BTREE_ERROR, "Error: Failed to write RRN count");
       return;
     }
-
-    size_t written = fwrite(i->free_rrn, sizeof(u16), i->n, i->io->fp);
-    if (written != i->n) {
-      printf("!!Error: Expected to write %d elements, but wrote %zu\n", i->n,
-             written);
-      return;
-    }
+  
+    export_ll(&i->gql, i->io->address, int);
+    fflush(i->io->fp);
     return;
   }
 
@@ -1155,9 +1132,6 @@ bool clear_ilist(free_rrn_list *i) {
     fclose(i->io->fp);
     i->io->fp = NULL;
   }
-
-  // g_dealloc(i->free_rrn);
-  // i->free_rrn = NULL;
 
   clear_io_buf(i->io);
   clear_ll(&i->gql);
@@ -1234,19 +1208,14 @@ u16 get_free_rrn(free_rrn_list *i) {
     exit(1);
   }
 
-  g_dealloc(i->free_rrn);
-  i->free_rrn = load_rrn_list(i);
+  read_ll(&i->gql, i->io->address, int);
 
-  if (!i->free_rrn || i->n == 0) {
+  if (is_ll_empty(&i->gql)) {
     // TODO rewrite this to a default initializing fn
     g_error(BTREE_ERROR, "Error: No free RRNs available; initializing with default");
     i->n = 1;
-    i->free_rrn = g_alloc(sizeof(u16));
-    if (!i->free_rrn) {
-      g_error(BTREE_ERROR, "Error: Failed to allocate RRN list");
-      exit(1);
-    }
-    i->free_rrn[0] = 0;
+    int k = 0;
+    insert_ll(&i->gql, &k);
     write_rrn_list_to_file(i);
     return 0;
   }
@@ -1258,19 +1227,10 @@ u16 get_free_rrn(free_rrn_list *i) {
   // TODO update this
   if (i->n < 1) {
     u16 new_rrn = rrn + 1;
-    while (rrn_exists(i->free_rrn, i->n, new_rrn))
-      new_rrn++;
-
-    u16 *new_list = realloc(i->free_rrn, (i->n + 1) * sizeof(u16));
-    if (!new_list) {
-      g_error(BTREE_ERROR, "Error: Failed to reallocate RRN list");
-    }
-    i->free_rrn = new_list;
-    i->free_rrn[i->n] = new_rrn;
+    insert_ll(&i->gql, &new_rrn);
     i->n++;
   }
 
-  sort_list(i->free_rrn, i->n);
   write_rrn_list_to_file(i);
   return rrn;
 }
@@ -1281,14 +1241,17 @@ u16 get_last_free_rrn(free_rrn_list *i) {
     return (u16)-1;
   }
 
-  if (!i->free_rrn)
-    i->free_rrn = load_rrn_list(i);
+  if (!i->gql)
+    read_ll(&i->gql, i->io->address, int);
 
-  if (!i->free_rrn || i->n == 0) {
+  if (is_ll_empty(&i->gql) || i->n == 0) {
     g_error(BTREE_ERROR, "Error: no free RRNs available");
     return (u16)-1;
   }
-  return i->free_rrn[i->n - 1];
+  
+  int rrn;
+  remove_ll(&i->gql, &rrn);
+  return rrn;
 }
 
 void insert_list(free_rrn_list *i, int rrn) {
@@ -1297,34 +1260,15 @@ void insert_list(free_rrn_list *i, int rrn) {
     return;
   }
 
-  if (rrn_exists(i->free_rrn, i->n, rrn)) {
+  if (search_ll(&i->gql, &rrn, compare_ints, NULL)) {
     g_warn(BTREE_STATUS, "RRN %d already exists in the list\n", rrn);
     return;
   }
 
-  u16 *new_list = realloc(i->free_rrn, (i->n + 1) * sizeof(u16));
-  if (!new_list) {
-    g_error(BTREE_ERROR, "Error: Memory allocation failed");
-    return;
-  }
-
-  i->free_rrn = new_list;
-  i->free_rrn[i->n++] = rrn;
-
-  sort_list(i->free_rrn, i->n);
+  insert_ll(&i->gql, &rrn);
+  i->n++;
   write_rrn_list_to_file(i);
-
-  // TODO later check if this print is needed
-  if (false) {
-    printf("List after insertion:\n");
-    for (int j = 0; j < i->n; j++)
-      printf("%hu ", i->free_rrn[j]);
-    puts("");
-    printf("RRN %d added and list sorted. New list:\n", rrn);
-    for (int j = 0; j < i->n; j++)
-      printf("%d ", i->free_rrn[j]);
-    puts("");
-  }
+  print_ll(&i->gql, int);
 }
 
 io_buf *alloc_io_buf(void) {
