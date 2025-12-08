@@ -3,7 +3,7 @@
 
 #include "../../defines.h"
 
-#define BTREE_CONFIG_PATH "assets/btree.conf"
+#define BTREE_CONFIG_PATH "assets/default_btree.json"
 
 typedef struct __btree_config {
   u32 order;

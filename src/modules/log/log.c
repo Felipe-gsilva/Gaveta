@@ -48,7 +48,7 @@ void g_log(log_level level, status_code status, const char *str, ...) {
       printf("%d - Btree Status | ", status);
       break; 
     case 2:
-      printf("%d - CPU Related | ", status);
+      printf("%d - File Error | ", status);
       break;
     case 3:
       printf("%d - Memory Status | ", status);

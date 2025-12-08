@@ -101,7 +101,7 @@ btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int
 
 void create_index_file(io_buf *io, const char *file_name);
 
-void clear_tree_buf(BTree *b);
+void clear_btree(BTree *b);
 
 int write_root_rrn(BTree *b, u16 rrn);
 

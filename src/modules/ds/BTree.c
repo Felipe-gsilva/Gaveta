@@ -116,7 +116,7 @@ bool compare_btree_nodes(void *v1, void *v2) {
   return (b1->rrn == b2->rrn);
 }
 
-void clear_tree_buf(BTree *b) {
+void clear_btree(BTree *b) {
   if (b) {
     clear_ll(&b->free_rrn);
     clear_gq(&b->q);
@@ -429,7 +429,7 @@ btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int
   return BTREE_INSERTED_IN_BTREE_NODE;
 }
 
-btree_status b_insert(BTree *b, data_record *d, u16 rrn) {
+btree_status b_insert(BTree *b, void *d, u16 rrn) {
   if (!b || !b->data || !d)
     return BTREE_ERROR_INVALID_btree_node;
 
@@ -1223,7 +1223,7 @@ io_buf *alloc_io_buf(void) {
   return io;
 }
 
-void d_insert(io_buf *io, data_record *d, GenericLinkedList *ld, u16 rrn) {
+void d_insert(io_buf *io, void *d, GenericLinkedList *ld, u16 rrn) {
   if (!io || !d || !ld) {
     g_error(BTREE_ERROR, "Error: NULL parameters on d_insert");
   }
@@ -1289,13 +1289,7 @@ void load_data_header(io_buf *io) {
           io->hr->record_size, io->hr->header_size, io->hr->free_rrn_address);
 }
 
-void print_data_record(data_record *hr) {
-  puts("\n--------DATA RECORD--------");
-  printf("%s\n", hr->data);
-  puts("---------------------------\n");
-}
-
-data_record *load_data_record(io_buf *io, u16 rrn) {
+void *load_data_record(io_buf *io, u16 rrn) {
   if (!io || !io->fp) {
     g_error(BTREE_ERROR, "Invalid IO buffer or file pointer");
     return NULL;
@@ -1397,7 +1391,7 @@ void prepend_data_header(io_buf *io) {
   fflush(io->fp);
 }
 
-void write_data_record(io_buf *io, data_record *d, u16 rrn) {
+void write_data_record(io_buf *io, void *d, u16 rrn) {
   if (!io || !io->fp || !d) {
     g_error(BTREE_ERROR, "Invalid input in write_data_record");
     return;
