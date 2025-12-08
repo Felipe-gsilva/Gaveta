@@ -1,8 +1,6 @@
 {
   "btree_name": "DefaultTree",
   "order": 32,
-  "index_file": "default.idx",
-  "data_file": "default.dat",
   "data_size": 256, 
   "schema": {
     "id": "number",

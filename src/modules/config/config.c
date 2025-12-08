@@ -18,13 +18,12 @@ extern App app;
 // }
 
 bool read_btree_config(const char *file_name, btree_config *cfg) {
-  assert(cfg != NULL);
-  const char *path = BTREE_CONFIG_PATH;
-  FILE *fp = fopen(path, "r");
+  assert(cfg != NULL && file_name != NULL);
+  FILE *fp = fopen(file_name, "r");
   char key[STRING_BUFFER_SIZE], value[STRING_BUFFER_SIZE];
 
   if (!fp) {
-    g_error(FILE_OPEN_ERROR, "Could not open %s", path);
+    g_error(FILE_OPEN_ERROR, "Could not open %s", file_name);
     return false;
   }
 
@@ -39,15 +38,26 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
       sprintf(cfg->data_file, "%s", value + 1); 
     else if (strcmp(key, "\"schema_size\"") == 0)
       cfg->schema_size = atoi(value);
-    else if (strcmp(key, "\"schema\"") == 0) {
+    else if (strcmp(key, "\"schema\"") == 0)
       // not usable yet
       cfg->schema = NULL;
-    }
+    else if (strcmp(key, "\"btree_name\"") == 0) 
+      sprintf(cfg->name, "%s", value + 1);
   };
 
-  // handle default vals
-  if (cfg->order <= 0 || cfg->order >= 100)
-    cfg->order = 20;
+  if (fclose(fp) != 0) {
+    g_error(FILE_CLOSE_ERROR, "Could not close %s", file_name);
+    return false;
+  }
+
+  if (cfg->order <= 0 || cfg->order >= 100) cfg->order = 20;
+  
+  if (cfg->schema_size == 0) cfg->schema_size = sizeof(key);
+
+  if (strlen(cfg->name) <= 0) return false;
+
+  sprintf(cfg->index_file, "assets/public/%s.idx", cfg->name);
+  sprintf(cfg->data_file, "assets/public/%s.dat", cfg->name);
 
   g_info("Btree config file loaded");
   return true;

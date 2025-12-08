@@ -6,6 +6,7 @@
 #define BTREE_CONFIG_PATH "assets/default_btree.json"
 
 typedef struct __btree_config {
+  char name[BIG_STR_BUFF_SIZE];
   u32 order;
   char index_file[MAX_ADDRESS];
   char data_file[MAX_ADDRESS];

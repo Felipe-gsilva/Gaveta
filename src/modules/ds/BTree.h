@@ -4,6 +4,7 @@
 #include "../../defines.h"
 #include "./GenericQueue.h"
 #include "./GenericLinkedList.h"
+#include "../config/config.h"
 
 typedef enum {
   BTREE_INSERTED_IN_BTREE_NODE = 5,
@@ -62,9 +63,10 @@ typedef struct __index_header_record {
 typedef struct __io_buf {
   char address[MAX_ADDRESS];
   FILE *fp;
+  // TODO change this headers
   data_header_record *hr;
   index_header_record *br;
-} io_buf;
+} io_buf; 
 
 typedef struct __BTree {
   btree_node *root;
@@ -72,7 +74,7 @@ typedef struct __BTree {
   io_buf *data;
   GenericQueue *q;
   GenericLinkedList *free_rrn;
-  u32 order;
+  btree_config config; // TODO integrate
 } BTree;
 
 void print_gq_btree_node(void *data);

@@ -9,8 +9,6 @@
 #include "modules/ds/GenericDynamicArray.h"
 
 typedef struct __App  {
-  io_buf *idx;
-  io_buf *data;
   DynamicArray *btrees;
 } App;
 

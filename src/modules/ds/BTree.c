@@ -19,12 +19,11 @@ BTree *create_btree(const char *config_file) {
     g_error(BTREE_ERROR, "Could not create B-Tree");
     return NULL;
   }
-  b->order = cfg.order;
+  b->config = cfg;
 
   char *index_file = g_alloc(MAX_ADDRESS), *data_file = g_alloc(MAX_ADDRESS);
-
-  sprintf(index_file, "assets/public/btree%c%d.idx", '-', b->order);
-  strcpy(data_file, "assets/public/btree.dat");
+  sprintf(index_file, "assets/public/btree%c%s.idx", '-', b->config.name);
+  sprintf(data_file, "assets/public/btree%c%s.dat", '-', b->config.name);
 
   create_index_file(b->idx, index_file);
   create_data_file(b->data, data_file);
@@ -35,6 +34,7 @@ BTree *create_btree(const char *config_file) {
   g_dealloc(data_file);
   g_dealloc(index_file);
 
+  // TODO not just idx, data also needs to load free_rrn
   load_list(b->free_rrn, b->idx->br->free_rrn_address);
 
   btree_node *temp = load_btree_node(b, b->idx->br->root_rrn);
@@ -43,11 +43,11 @@ BTree *create_btree(const char *config_file) {
   if (ftell(b->idx->fp) <= b->idx->br->header_size) {
     int k = 0;
     insert_ll(&b->free_rrn, &k);
-    build_tree(b, b->order);
+    build_tree(b, b->config.order);
 
     print_gq(&b->q, btree_node);
 
-    k = b->order + 1;
+    k = b->config.order + 1;
     insert_ll(&b->free_rrn, &k);
     b->idx->br->root_rrn = b->root->rrn;
     write_index_header(b->idx);
@@ -203,7 +203,7 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
     return bn;
   }
 
-  bn = alloc_btree_node(b->order);
+  bn = alloc_btree_node(b->config.order);
   if (!bn)
     return NULL;
 
@@ -437,7 +437,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
   populate_key(&new_key, d, rrn);
 
   if (!b->root) {
-    b->root = alloc_btree_node(b->order);
+    b->root = alloc_btree_node(b->config.order);
     if (!b->root)
       return BTREE_ERROR_MEMORY;
 
@@ -467,7 +467,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
   }
 
   if (promoted) {
-    btree_node *new_root = alloc_btree_node(b->order);
+    btree_node *new_root = alloc_btree_node(b->config.order);
     if (!new_root)
       return BTREE_ERROR_MEMORY;
 
@@ -503,8 +503,8 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
   if (!b || !p || !r_child || !promo_key || !incoming_key)
     return BTREE_ERROR_INVALID_btree_node;
 
-  key temp_keys[b->order];
-  u16 temp_children[b->order + 1];
+  key temp_keys[b->config.order];
+  u16 temp_children[b->config.order + 1];
 
   memset(temp_keys, 0, sizeof(temp_keys));
   memset(temp_children, 0xFF, sizeof(temp_children));
@@ -533,7 +533,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
     temp_children[pos + 2] = (*r_child)->rrn;
   }
 
-  btree_node *new_btree_node = alloc_btree_node(b->order);
+  btree_node *new_btree_node = alloc_btree_node(b->config.order);
   if (!new_btree_node)
     return BTREE_ERROR_MEMORY;
 
@@ -543,11 +543,11 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
     return BTREE_ERROR_IO;
   }
 
-  int split = (b->order - 1) / 2;
+  int split = (b->config.order - 1) / 2;
 
   if (p->leaf) {
     p->keys_num = split + 1;
-    new_btree_node->keys_num = b->order - (split + 1);
+    new_btree_node->keys_num = b->config.order - (split + 1);
     new_btree_node->leaf = true;
 
     for (int i = 0; i < p->keys_num; i++) {
@@ -564,7 +564,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
     *promo_key = new_btree_node->keys[0];
   } else {
     p->keys_num = split;
-    new_btree_node->keys_num = b->order - split - 1;
+    new_btree_node->keys_num = b->config.order - split - 1;
     new_btree_node->leaf = false;
 
     for (int i = 0; i < p->keys_num; i++) {
@@ -631,7 +631,7 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     if (status == BTREE_PROMOTION) {
       k = temp_key;
       *r_child = temp_child;
-      if (p->keys_num < b->order - 1) {
+      if (p->keys_num < b->config.order - 1) {
         *promoted = false;
         status = insert_in_btree_node(p, k, temp_child, pos);
         if (status == BTREE_INSERTED_IN_BTREE_NODE) {
@@ -644,7 +644,7 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     return status;
   }
 
-  if (p->keys_num < b->order - 1) {
+  if (p->keys_num < b->config.order - 1) {
     *promoted = false;
     status = insert_in_btree_node(p, k, NULL, pos);
     if (status == BTREE_INSERTED_IN_BTREE_NODE) {
@@ -698,16 +698,16 @@ btree_status b_remove(BTree *b, char *key_id) {
     if (status < 0)
       return status;
 
-    if (p != b->root && p->keys_num < (b->order - 1) / 2) {
+    if (p != b->root && p->keys_num < (b->config.order - 1) / 2) {
       g_info("Leaf underflow detected");
 
       btree_node *left = get_sibling(b, p, true);
-      if (left && left->keys_num > (b->order - 1) / 2) {
+      if (left && left->keys_num > (b->config.order - 1) / 2) {
         return redistribute(b, left, p, true);
       }
 
       btree_node *right = get_sibling(b, p, false);
-      if (right && right->keys_num > (b->order - 1) / 2) {
+      if (right && right->keys_num > (b->config.order - 1) / 2) {
         return redistribute(b, right, p, false);
       }
 
