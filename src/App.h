@@ -11,9 +11,6 @@
 typedef struct __App  {
   io_buf *idx;
   io_buf *data;
-  b_tree_buf *b;
-  free_rrn_list *ld;
-  btree_config b_cfg;
   DynamicArray *btrees;
 } App;
 

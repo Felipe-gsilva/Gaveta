@@ -15,14 +15,17 @@ bool compare_floats(void *a, void *b);
 bool compare_strings(void *a, void *b);
 
 void print_int_node(void *data);
+void print_u32_node(void *data);
 void print_float_node(void *data);
 void print_string_node(void *data);
 
 void write_int_node(FILE *fp, void *data);
+void write_u32_node(FILE *fp, void *data);
 void write_float_node(FILE *fp, void *data);
 void write_string_node(FILE *fp, void *data);
 
 void read_int_node(FILE *fp, void *data);
+void read_u32_node(FILE *fp, void *data);
 void read_float_node(FILE *fp, void *data);
 void read_string_node(FILE *fp, void *data);
 

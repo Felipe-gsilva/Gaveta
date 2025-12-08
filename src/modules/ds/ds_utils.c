@@ -15,6 +15,11 @@ void print_string_node(void *data) {
   printf("%s\n", (char*)data);
 }
 
+void print_u32_node(void *data) {
+  assert((u32*)data);
+  printf("%u\n", *(u32*)data);
+}
+
 
 bool compare_ints(void *v1, void *v2) {
   assert(v1 && v2);
@@ -38,6 +43,13 @@ bool compare_strings(void *v1, void *v2) {
   return strcmp(s1, s2) == 0;
 }
 
+bool compare_u32s(void *v1, void *v2) {
+  assert(v1 && v2);
+  u32 *i1 = v1;
+  u32 *i2 = v2;
+  return *i2 == *i1;
+}
+
 
 void write_int_node(FILE *fp, void *data) {
   assert((int*)data && fp);
@@ -47,6 +59,11 @@ void write_int_node(FILE *fp, void *data) {
 void write_float_node(FILE *fp, void *data) {
   assert((int*)data && fp);
   fprintf(fp, "%d\n", *(int*)data);
+}
+
+void write_u32_node(FILE *fp, void *data) {
+  assert((u32*)data && fp);
+  fprintf(fp, "%u\n", *(u32*)data);
 }
 
 void write_string_node(FILE *fp, void *data) {
@@ -67,4 +84,9 @@ void read_float_node(FILE *fp, void *data) {
 void read_string_node(FILE *fp, void *data) {
   assert((char*)data && fp);
   fscanf(fp, "%s\n", (char*)data);
+}
+
+void read_u32_node(FILE *fp, void *data) {
+  assert((u32*)data && fp);
+  fscanf(fp, "%u\n", (u32*)data);
 }

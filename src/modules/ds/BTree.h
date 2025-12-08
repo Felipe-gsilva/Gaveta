@@ -40,14 +40,8 @@ typedef struct __btree_node {
   u8 leaf;
 } btree_node;
 
-typedef struct __queue {
-  struct __queue *next;
-  btree_node *btree_node;
-  u16 counter;
-} queue;
-
 typedef struct __data_record {
-  char *data;
+  void *data;
   char *key;
   u16 rrn;
 } data_record;
@@ -72,69 +66,65 @@ typedef struct __io_buf {
   index_header_record *br;
 } io_buf;
 
-typedef struct __free_rrn_list {
-  io_buf *io;
-  // u16 *free_rrn;
-  GenericLinkedList *gql;
-  u16 n;
-} free_rrn_list;
-
-typedef struct __b_tree_buf {
+typedef struct __BTree {
   btree_node *root;
-  io_buf *io;
+  io_buf *idx;
+  io_buf *data;
   GenericQueue *q;
-  free_rrn_list *i;
+  GenericLinkedList *free_rrn;
   u32 order;
-} b_tree_buf;
+} BTree;
 
 void print_gq_btree_node(void *data);
 
-b_tree_buf *alloc_tree_buf(u32 order);
+BTree *alloc_tree_buf(u32 order);
 
-void build_tree(b_tree_buf *b, io_buf *data, int n);
+BTree *create_btree(const char *config_file);
 
-btree_status handle_underflow(b_tree_buf *b, btree_node *p);
+bool build_tree(BTree *b, u32 n);
 
-btree_node *get_sibling(b_tree_buf *b, btree_node *p, bool left);
+btree_status handle_underflow(BTree *b, btree_node *p);
 
-btree_node *find_parent(b_tree_buf *b, btree_node *current, btree_node *target);
+btree_node *get_sibling(BTree *b, btree_node *p, bool left);
 
-btree_status b_insert(b_tree_buf *b, io_buf *data, data_record *d, u16 rrn);
+btree_node *find_parent(BTree *b, btree_node *current, btree_node *target);
 
-btree_status insert_key(b_tree_buf *b, btree_node *p, key k, key *promo_key,
+btree_status b_insert(BTree *b, void *d, u16 rrn);
+
+btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
                         btree_node **r_child, bool *promoted);
 
-btree_status b_split(b_tree_buf *b, btree_node *p, btree_node **r_child, key *promo_key,
+btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_key,
                      key *incoming_key, bool *promoted);
 
 btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos);
 
 void create_index_file(io_buf *io, const char *file_name);
 
-void clear_tree_buf(b_tree_buf *b);
+void clear_tree_buf(BTree *b);
 
-int write_root_rrn(b_tree_buf *b, u16 rrn);
+int write_root_rrn(BTree *b, u16 rrn);
 
-btree_node *b_search(b_tree_buf *b, const char *s, u16 *return_pos);
+btree_node *b_search(BTree *b, const char *s, u16 *return_pos);
 
-void b_range_search(b_tree_buf *b, io_buf *data, key_range *range);
+void b_range_search(BTree *b, key_range *range);
 
-u16 search_key(b_tree_buf *b, btree_node *p, key key, u16 *found_pos,
+u16 search_key(BTree *b, btree_node *p, key key, u16 *found_pos,
                btree_node **return_btree_node);
 
 int search_in_btree_node(btree_node *btree_node, key key, int *return_pos);
 
-btree_status b_remove(b_tree_buf *b, io_buf *data, char *key_id);
+btree_status b_remove(BTree *b, char *key_id);
 
-btree_status remove_key(b_tree_buf *b, btree_node *p, key k, bool *merged);
+btree_status remove_key(BTree *b, btree_node *p, key k, bool *merged);
 
-btree_status redistribute(b_tree_buf *b, btree_node *donor, btree_node *receiver, bool from_left);
+btree_status redistribute(BTree *b, btree_node *donor, btree_node *receiver, bool from_left);
 
-btree_status merge(b_tree_buf *b, btree_node *left, btree_node *right);
+btree_status merge(BTree *b, btree_node *left, btree_node *right);
 
 void print_btree_node(btree_node *btree_node);
 
-btree_node *load_btree_node(b_tree_buf *b, u16 rrn);
+btree_node *load_btree_node(BTree *b, u16 rrn);
 
 void populate_index_header(index_header_record *bh, const char *file_name);
 
@@ -142,7 +132,7 @@ void load_index_header(io_buf *io);
 
 int write_index_header(io_buf *io);
 
-int write_index_record(b_tree_buf *b, btree_node *p);
+int write_index_record(BTree *b, btree_node *p);
 
 btree_node *alloc_btree_node(u32 order);
 
@@ -156,25 +146,15 @@ bool clear_all_btree_nodes(void);
 
 void track_btree_node(btree_node *p);
 
-free_rrn_list *alloc_ilist(void);
+bool load_list(GenericLinkedList *i, char* s);
 
-bool clear_ilist(free_rrn_list *i);
+u16 get_free_rrn(GenericLinkedList *i);
 
-bool load_list(free_rrn_list *i, char* s);
+u16 get_last_free_rrn(GenericLinkedList *i);
 
-u16 *load_rrn_list(free_rrn_list *i);
-
-u16 get_free_rrn(free_rrn_list *i);
-
-u16 get_last_free_rrn(free_rrn_list *i);
-
-u16 *load_rrns(free_rrn_list *i);
-
-void insert_list(free_rrn_list *i, int rrn);
+u16 *load_rrns(GenericLinkedList *i);
 
 io_buf *alloc_io_buf(void);
-
-void print_data_record(data_record *hr);
 
 void load_file(io_buf *io, char *file_name, const char *type);
 
@@ -182,7 +162,7 @@ void create_data_file(io_buf *io, char *file_name);
 
 void load_data_header(io_buf *io);
 
-data_record *load_data_record(io_buf *io, u16 rrn);
+void *load_data_record(io_buf *io, u16 rrn);
 
 void populate_header(data_header_record *hp, const char *file_name);
 
@@ -190,9 +170,9 @@ void prepend_data_header(io_buf *io);
 
 void write_data_header(io_buf *io);
 
-void write_data_record(io_buf *io, data_record *d, u16 rrn);
+void write_data_record(io_buf *io, void *d, u16 rrn);
 
 void clear_io_buf(io_buf *io_buf);
 
-void d_insert(io_buf *io, data_record *d, free_rrn_list *ld, u16 rrn);
+void d_insert(io_buf *data, void *d, GenericLinkedList *free_rrn, u16 rrn);
 #endif

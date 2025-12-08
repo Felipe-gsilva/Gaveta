@@ -15,12 +15,9 @@ bool set_envvar(const char *mode) {
 }
 
 void init_app(void) {
-  read_btree_config();
   init_mem(MB * 16);
   app.idx = alloc_io_buf();
   app.data = alloc_io_buf();
-  app.b = alloc_tree_buf(app.b_cfg.order);
-  app.ld = alloc_ilist();
   min_log_level = INFO;
 
   if (app.idx && app.data)
@@ -39,49 +36,11 @@ void clear_app() {
     app.data = NULL;
   }
   clear_all_btree_nodes();
-  if (app.b) {
-    clear_tree_buf(app.b);
-    app.b = NULL;
-  }
-  if (app.ld) {
-    clear_ilist(app.ld);
-    app.ld = NULL;
-  }
 }
 
 int main(int argc, char **argv) {
   init_app();
-  int n = app.b_cfg.order;
-  char *index_file = g_alloc(MAX_ADDRESS), *data_file = g_alloc(MAX_ADDRESS);
-
-  sprintf(index_file, "assets/public/btree%c%d.idx", '-', n);
-  strcpy(data_file, "assets/public/btree.dat");
-
-  create_index_file(app.b->io, index_file);
-  create_data_file(app.data, data_file);
-
-  load_file(app.b->io, index_file, "index");
-  load_file(app.data, data_file, "data");
-
-  g_dealloc(data_file);
-  g_dealloc(index_file);
-
-  load_list(app.b->i, app.b->io->br->free_rrn_address);
-  load_list(app.ld, app.data->hr->free_rrn_address);
-
-  btree_node *temp = load_btree_node(app.b, app.b->io->br->root_rrn);
-  app.b->root = temp;
-
-  if (ftell(app.b->io->fp) <= app.b->io->br->header_size) {
-     insert_list(app.b->i, 0);
-     build_tree(app.b, app.data, n);
-
-    print_gq(&app.b->q, btree_node);
-
-    insert_list(app.ld, n + 1);
-    app.b->io->br->root_rrn = app.b->root->rrn;
-    write_index_header(app.b->io);
-  }
+  
 
   // heterogeneous data type
   GenericQueue *gq2 = NULL;
