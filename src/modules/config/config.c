@@ -17,6 +17,15 @@ extern App app;
 //   },
 // }
 
+static char* end_str(char *str) {
+  for (size_t i = 0; i < strlen(str); i++) {
+    if (str[i] == '"' || str[i] == ':' || str[i] == '\n' || str[i] == ' ') {
+      str[i] = '\0';
+    }
+  }
+  return str;
+}
+
 bool read_btree_config(const char *file_name, btree_config *cfg) {
   assert(cfg != NULL && file_name != NULL);
   FILE *fp = fopen(file_name, "r");
@@ -29,20 +38,22 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
 
   // load cfg
   while(!feof(fp)) {
-    fscanf(fp, "%s: %s\n", key, value);
-    if (strcmp(key, "\"order\"") == 0) 
+    // read a json line
+    fscanf(fp, " %[^:]: %[^,\n]", key, value);
+
+    if (strstr(key, "order"))
       cfg->order = atoi(value);
-    else if (strcmp(key, "\"index_file\"") == 0)
-      sprintf(cfg->index_file, "%s", value + 1);
-    else if (strcmp(key, "\"data_file\"") == 0)
-      sprintf(cfg->data_file, "%s", value + 1); 
-    else if (strcmp(key, "\"schema_size\"") == 0)
+    else if (strstr(key, "index_file"))
+      sprintf(cfg->index_file, "%s", end_str(value + 1));
+    else if (strstr(key, "data_file"))
+      sprintf(cfg->data_file, "%s", end_str(value + 1)); 
+    else if (strstr(key, "schema_size"))
       cfg->schema_size = atoi(value);
-    else if (strcmp(key, "\"schema\"") == 0)
+    else if (strstr(key, "schema_data"))
       // not usable yet
       cfg->schema = NULL;
-    else if (strcmp(key, "\"btree_name\"") == 0) 
-      sprintf(cfg->name, "%s", value + 1);
+    else if (strstr(key, "btree_name")) 
+      sprintf(cfg->name, "%s", end_str(value + 1));
   };
 
   if (fclose(fp) != 0) {
@@ -59,6 +70,6 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
   sprintf(cfg->index_file, "assets/public/%s.idx", cfg->name);
   sprintf(cfg->data_file, "assets/public/%s.dat", cfg->name);
 
-  g_info("Btree config file loaded");
+  g_info("Btree config file for %s loaded", cfg->name);
   return true;
 }

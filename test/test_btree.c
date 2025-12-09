@@ -1,7 +1,7 @@
 #include "test_btree.h"
 
 bool test_btree_insert_and_search() {
-    BTree* tree = create_btree("assets/default_btree.json");
+    BTree* tree = create_btree("assets/configs/default_btree.json");
     if (!tree) return false; 
 
     int values_to_insert[] = {10, 20, 5, 6, 12, 30, 7, 17};

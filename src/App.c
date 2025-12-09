@@ -33,7 +33,7 @@ void clear_app() {
 void cli() {
   char command[STRING_BUFFER_SIZE];
   while (true) {
-    printf("btree-db> ");
+    printf("gaveta-db> ");
     if (!fgets(command, STRING_BUFFER_SIZE, stdin)) {
       printf("\n");
       break;
@@ -48,7 +48,22 @@ void cli() {
         BTree *btree;
         darray_get(app.btrees, i, &btree);
       }
-    } else {
+    } 
+    else if (strcmp(command, "clear") == 0) {
+      #ifdef _WIN32
+        system("cls");
+      #else
+        system("clear");
+      #endif
+    }
+    else if (strcmp(command, "help") == 0 || strcmp(command, "h") == 0 || strcmp(command, "?") == 0) {
+      printf("Available commands:\n");
+      printf("  list         - List all loaded BTrees\n");
+      printf("  help, h, ?   - Show this help message\n");
+      printf("  clear        - Clear the console screen\n");
+      printf("  exit, quit   - Exit the application\n");
+    }
+    else {
       printf("Unknown command: %s\n", command);
     }
   }
