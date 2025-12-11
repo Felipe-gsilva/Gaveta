@@ -80,6 +80,7 @@ bool clear_ll(GenericLinkedList **ll) {
   g_dealloc(helper);
   return true;
 }
+
 bool search_ll(GenericLinkedList **ll, void *data, bool (*cmp_fn)(void*, void*), GenericLinkedList **found_node) {
   if (!*ll || is_ll_empty(ll)) {
     g_error(LIST_ERROR, "Trying to search in a empty LinkedList");
@@ -174,4 +175,21 @@ bool read_ll_from_disk(GenericLinkedList **ll, char* path, read_fallback_fn fn) 
 
   fclose(fp);
   return true;
+}
+
+u32 get_ll_size(GenericLinkedList **ll) {
+  if (!ll || !*ll) {
+    g_error(LIST_ERROR, "Trying to get size of a non initialized LinkedList");
+    return 0;
+  }
+
+  GenericLinkedList *aux = (*ll)->next;
+  u32 count = 0;
+
+  while (aux) {
+    count++;
+    aux = aux->next;
+  }
+
+  return count;
 }

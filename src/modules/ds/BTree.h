@@ -66,6 +66,7 @@ typedef struct __io_buf {
   // TODO change this headers
   data_header_record *hr;
   index_header_record *br;
+  GenericLinkedList *free_rrn;
 } io_buf; 
 
 typedef struct __BTree {
@@ -73,7 +74,6 @@ typedef struct __BTree {
   io_buf *idx;
   io_buf *data;
   GenericQueue *q;
-  GenericLinkedList *free_rrn;
   btree_config config; // TODO integrate
 } BTree;
 
@@ -158,15 +158,17 @@ u16 *load_rrns(GenericLinkedList *i);
 
 io_buf *alloc_io_buf(void);
 
+#define load_index_file(io, file_name) load_file(io, file_name, "index")
+#define load_data_file(io, file_name) load_file(io, file_name, "data")
 void load_file(io_buf *io, char *file_name, const char *type);
 
-void create_data_file(io_buf *io, char *file_name);
+void create_data_file(io_buf *io, char *file_name, u32 schema_size);
 
 void load_data_header(io_buf *io);
 
 void *load_data_record(io_buf *io, u16 rrn);
 
-void populate_header(data_header_record *hp, const char *file_name);
+void populate_header(data_header_record *hp, const char *file_name, u32 schema_size);
 
 void prepend_data_header(io_buf *io);
 

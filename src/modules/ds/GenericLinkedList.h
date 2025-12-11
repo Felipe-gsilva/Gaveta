@@ -18,6 +18,7 @@ bool remove_ll(GenericLinkedList **ll, void *save_to);
 bool is_ll_empty(GenericLinkedList **ll);
 bool clear_ll(GenericLinkedList **ll);
 bool search_ll(GenericLinkedList **ll, void *data, bool (*cmp_fn)(void*, void*), GenericLinkedList **found_node);
+u32 get_ll_size(GenericLinkedList **ll);
 
 // external
 bool export_ll_to_disk(GenericLinkedList **ll, char* path, write_fallback_fn fn);

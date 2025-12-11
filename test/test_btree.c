@@ -1,6 +1,7 @@
 #include "test_btree.h"
 
 bool test_btree_insert_and_search() {
+    init_mem(MB * 16);
     BTree* tree = create_btree("assets/configs/default_btree.json");
     if (!tree) return false; 
 
@@ -19,5 +20,6 @@ bool test_btree_insert_and_search() {
     }
 
     clear_btree(tree);
+    clear_mem();
     return true; // All values found
 }

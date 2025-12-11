@@ -15,43 +15,41 @@ BTree *create_btree(const char *config_file) {
   }
 
   BTree *b = alloc_tree_buf(cfg.order);
+
   if (!b) {
     g_error(BTREE_ERROR, "Could not create B-Tree");
     return NULL;
   }
-  b->config = cfg;
 
-  char *index_file = g_alloc(MAX_ADDRESS), *data_file = g_alloc(MAX_ADDRESS);
+  b->config = cfg;
+  char index_file[MAX_ADDRESS], data_file[MAX_ADDRESS];
   sprintf(index_file, "assets/public/btree%c%s.idx", '-', b->config.name);
   sprintf(data_file, "assets/public/btree%c%s.dat", '-', b->config.name);
 
   create_index_file(b->idx, index_file);
-  create_data_file(b->data, data_file);
+  create_data_file(b->data, data_file, b->config.schema_size);
 
-  load_file(b->idx, index_file, "index");
-  load_file(b->data, data_file, "data");
+  load_index_file(b->idx, index_file);
+  load_data_file(b->data, data_file);
 
-  g_dealloc(data_file);
-  g_dealloc(index_file);
+  b->root = load_btree_node(b, b->idx->br->root_rrn);
 
-  // TODO not just idx, data also needs to load free_rrn
-  load_list(b->free_rrn, b->idx->br->free_rrn_address);
-
-  btree_node *temp = load_btree_node(b, b->idx->br->root_rrn);
-  b->root = temp;
-
-  if (ftell(b->idx->fp) <= b->idx->br->header_size) {
+  if (b->root == NULL) {
+    g_info("B-Tree is empty, building new tree");
     int k = 0;
-    insert_ll(&b->free_rrn, &k);
+    insert_ll(&b->idx->free_rrn, &k);
+    b->idx->br->root_rrn = k;
+    b->idx->br->btree_node_size = sizeof(btree_node);
+    // yet to check
+    b->idx->hr->header_size = sizeof(data_header_record) + b->config.schema_size;
     build_tree(b, b->config.order);
-
     print_gq(&b->q, btree_node);
 
     k = b->config.order + 1;
-    insert_ll(&b->free_rrn, &k);
-    b->idx->br->root_rrn = b->root->rrn;
+    insert_ll(&b->idx->free_rrn, &k);
     write_index_header(b->idx);
   }
+
   return b;
 }
 
@@ -94,9 +92,9 @@ BTree *alloc_tree_buf(u32 order) {
     return NULL;
   }
 
-  b->free_rrn = NULL;
-  init_ll(&b->free_rrn, sizeof(u16));
-  if (!b->free_rrn) {
+  b->idx->free_rrn = NULL;
+  init_ll(&b->idx->free_rrn, sizeof(u16));
+  if (!b->idx->free_rrn) {
     g_dealloc(b->q);
     g_dealloc(b->idx);
     g_dealloc(b->data);
@@ -118,7 +116,7 @@ bool compare_btree_nodes(void *v1, void *v2) {
 
 void clear_btree(BTree *b) {
   if (b) {
-    clear_ll(&b->free_rrn);
+    clear_ll(&b->idx->free_rrn);
     clear_gq(&b->q);
     clear_io_buf(b->idx);
     clear_io_buf(b->data);
@@ -155,16 +153,30 @@ void populate_index_header(index_header_record *bh, const char *file_name) {
 
 bool build_tree(BTree *b, u32 n) {
   if (!b || !b->data) {
-    g_error(BTREE_ERROR, "Invalid parameters");
+    g_error(BTREE_ERROR, "Invalid parameters for building a tree");
     return false;
   }
-  if (!b->free_rrn) {
-    load_list(b->free_rrn, b->idx->br->free_rrn_address);
-    if (b->free_rrn) {
-      puts("Loaded rrn list");
+
+  if (!b->idx->free_rrn) {
+    printf("Loading idx free RRN list from %s\n", b->idx->br->free_rrn_address);
+    load_list(b->idx->free_rrn, b->idx->br->free_rrn_address);
+    if (!b->idx->free_rrn) {
+      g_error(BTREE_ERROR, "Could not load index free RRN list");
+      return false;
     }
   }
+
+  if (!b->data->free_rrn) {
+    printf("Loading data free RRN list from %s\n", b->data->br->free_rrn_address);
+    load_list(b->data->free_rrn, b->data->br->free_rrn_address);
+    if (!b->data->free_rrn) {
+      g_error(BTREE_ERROR, "Could not load data free RRN list");
+      return false;
+    }
+  }
+
   data_record *d;
+
   for (int i = 0; i < n; i++) {
     d = load_data_record(b->data, i);
     if (!d) {
@@ -180,7 +192,7 @@ bool build_tree(BTree *b, u32 n) {
   if (d)
     g_dealloc(d);
 
-  g_info("Built tree");
+  g_info("Built tree with order %d and %d records", b->config.order, n);
   return true;
 }
 
@@ -190,11 +202,17 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
     return NULL;
   }
 
-  // TODO change because of RRN
   btree_node *bn = g_alloc(sizeof(btree_node));
   bn->rrn = rrn;
   GenericQueue *node = g_alloc(sizeof(GenericQueue));
-  search_gq(&b->q, &rrn, compare_btree_nodes, &node);
+
+  if(!search_gq(&b->q, &rrn, compare_btree_nodes, &node)) {
+    g_dealloc(bn);
+    g_dealloc(node);
+    g_debug(BTREE_STATUS, "Btree_node not found in queue");
+    bn = NULL;
+    return bn;
+  }
 
   bn = *(btree_node **)node->data;
 
@@ -441,7 +459,8 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     if (!b->root)
       return BTREE_ERROR_MEMORY;
 
-    b->root->rrn = get_free_rrn(b->free_rrn);
+    b->root->rrn = get_free_rrn(b->idx->free_rrn);
+
     if (b->root->rrn < 0) {
       g_dealloc(b->root);
       b->root = NULL;
@@ -471,7 +490,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     if (!new_root)
       return BTREE_ERROR_MEMORY;
 
-    new_root->rrn = get_free_rrn(b->free_rrn);
+    new_root->rrn = get_free_rrn(b->idx->free_rrn);
     if (new_root->rrn < 0) {
       g_dealloc(new_root);
       return BTREE_ERROR_IO;
@@ -537,7 +556,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
   if (!new_btree_node)
     return BTREE_ERROR_MEMORY;
 
-  new_btree_node->rrn = get_free_rrn(b->free_rrn);
+  new_btree_node->rrn = get_free_rrn(b->idx->free_rrn);
   if (new_btree_node->rrn == (u16)-1) {
     g_dealloc(new_btree_node);
     return BTREE_ERROR_IO;
@@ -684,7 +703,7 @@ btree_status b_remove(BTree *b, char *key_id) {
         memset(&empty_record, '*', sizeof(data_record));
         fwrite(&empty_record, sizeof(data_record), 1, b->data->fp);
         fflush(b->data->fp);
-        insert_ll(&b->free_rrn, &data_rrn);
+        insert_ll(&b->idx->free_rrn, &data_rrn);
       }
     }
 
@@ -768,7 +787,7 @@ btree_status merge(BTree *b, btree_node *left, btree_node *right) {
   if (status < 0)
     return status;
 
-  insert_ll(&b->free_rrn, &right->rrn);
+  insert_ll(&b->idx->free_rrn, &right->rrn);
 
   return BTREE_SUCCESS;
 }
@@ -1013,11 +1032,7 @@ void create_index_file(io_buf *io, const char *file_name) {
   }
 
   char list_name[MAX_ADDRESS];
-  strcpy(list_name, file_name);
-  char *dot = strrchr(list_name, '.');
-  if (dot) {
-    strcpy(dot, ".hlp");
-  }
+  sprintf(list_name, "%s_free_rrn_list.bin", file_name);
 
   load_index_header(io);
 
@@ -1150,29 +1165,29 @@ void sort_list(u16 A[], int n) {
 }
 
 void write_rrn_list_to_file(GenericLinkedList *i, char *file_name) {
-  if (!i )
+  if (!i)
     return;
 
-  if (!is_ll_empty(&i)) {
-    g_error(BTREE_ERROR, "Error: RRN list is not empty");
+  if (is_ll_empty(&i)) {
+    g_error(BTREE_ERROR, "Error: RRN list is empty");
     return;
   }
 
   export_ll(&i, file_name, int);
 }
 
-// TODO update this to write into header buffer
 bool load_list(GenericLinkedList *i, char *s) {
-  if (!i || !s) {
-    g_error(BTREE_ERROR, "Error: Invalid parameters");
+  if (i == NULL || s == NULL) {
+    g_error(BTREE_ERROR, "Invalid parameters for loading a list");
     return false;
   }
 
   if (!i) read_ll(&i, s, u32);
 
   if (is_ll_empty(&i)) {
-    g_error(BTREE_ERROR, "Error: RRN list is empty");
-    return false;
+    g_warn(BTREE_ERROR, "Error: RRN list is empty. Initializing new list ");
+    init_ll(&i, sizeof(u32));
+    return true;
   }
 
 
@@ -1186,6 +1201,10 @@ u16 get_free_rrn(GenericLinkedList *i) {
     exit(1);
   }
 
+  if (is_ll_empty(&i)) {
+    g_info("No free RRN available, allocating new RRN");
+    return (u16)(get_ll_size(&i));
+  }
 
   int rrn;
   remove_ll(&i, &rrn);
@@ -1405,13 +1424,14 @@ void write_data_record(io_buf *io, void *d, u16 rrn) {
   }
 }
 
-void populate_header(data_header_record *hp, const char *file_name) {
+void populate_header(data_header_record *hp, const char *file_name, u32 schema_size) {
+  assert(file_name != NULL && schema_size > 0);
   if (hp == NULL) {
     g_error(BTREE_ERROR, "Header pointer is NULL, cannot populate");
     return;
   }
 
-  hp->record_size = sizeof(data_record);
+  hp->record_size = sizeof(data_record) + schema_size;
   strcpy(hp->free_rrn_address, file_name);
   hp->free_rrn_address[strlen(file_name) + 1] = '\0';
   hp->header_size = strlen(file_name) + 1 + sizeof(u16) * 2;
@@ -1480,10 +1500,16 @@ void load_file(io_buf *io, char *file_name, const char *type) {
     return;
   }
 
+  if (strcmp(type, "data") == 0)
+    load_list(io->free_rrn, io->hr->free_rrn_address);
+  else if (strcmp(type, "index") == 0)
+    load_list(io->free_rrn, io->br->free_rrn_address);
+
+
   g_info("Loaded %s", file_name);
 }
 
-void create_data_file(io_buf *io, char *file_name) {
+void create_data_file(io_buf *io, char *file_name, u32 schema_size) {
   if (!io || !file_name) {
     g_error(BTREE_ERROR, "Invalid IO buffer or file name");
     return;
@@ -1498,10 +1524,7 @@ void create_data_file(io_buf *io, char *file_name) {
 
   int prepend = 0;
   char list_name[MAX_ADDRESS];
-  strcpy(list_name, file_name);
-  char *dot = strrchr(list_name, '.');
-  if (dot)
-    strcpy(dot, ".hlp");
+  sprintf(list_name, "%s.dot", file_name);
 
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
@@ -1514,7 +1537,7 @@ void create_data_file(io_buf *io, char *file_name) {
     fclose(io->fp);
     io->fp = fopen(io->address, "r+b");
     prepend = 1;
-    populate_header(io->hr, list_name);
+    populate_header(io->hr, list_name, schema_size);
   } else {
     if (io->hr == NULL) {
       io->hr = g_alloc(sizeof(data_header_record));
@@ -1530,12 +1553,12 @@ void create_data_file(io_buf *io, char *file_name) {
     if (io->hr->record_size != sizeof(data_record)) {
       puts("needs to prepend");
       prepend = 1;
-      populate_header(io->hr, list_name);
+      populate_header(io->hr, list_name, schema_size);
     }
   }
 
   if (prepend == 1) {
-    populate_header(io->hr, list_name);
+    populate_header(io->hr, list_name, schema_size);
     prepend_data_header(io);
   }
 
