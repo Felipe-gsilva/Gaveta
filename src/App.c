@@ -72,7 +72,7 @@ void cli() {
 int main(int argc, char **argv) {
   init_app();
   char cmd[STRING_BUFFER_SIZE];
-  sprintf(cmd, "ls assets/configs | grep .json > assets/configs/list.txt");
+  sprintf(cmd, "ls assets/configs | grep .conf > assets/configs/list.txt");
   system(cmd);
   FILE *fp = fopen("assets/configs/list.txt", "r");
   if (!fp) {

@@ -148,6 +148,7 @@ bool export_ll_to_disk(GenericLinkedList **ll, char* path, write_fallback_fn fn)
 
   while(aux) {
     fn(fp, aux->data);
+    aux = aux->next;
   }
 
   fclose(fp);

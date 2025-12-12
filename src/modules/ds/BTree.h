@@ -16,7 +16,7 @@ typedef enum {
   BTREE_ERROR_MEMORY = -1,
   BTREE_ERROR_IO = -2,
   BTREE_ERROR_DUPLICATE = -3,
-  BTREE_ERROR_INVALID_btree_node = -4,
+  BTREE_ERROR_INVALID_BTREE_NODE = -4,
   BTREE_ERROR_BTREE_NODE_FULL = -5
 } btree_status;
 
@@ -43,47 +43,27 @@ typedef struct __btree_node {
 
 typedef struct __data_record {
   void *data;
-  char *key;
-  u16 rrn;
+  key *k;
 } data_record;
 
-typedef struct __data_header_record {
-  u16 header_size;
-  u16 record_size;
-  char *free_rrn_address;
-} data_header_record;
-
-typedef struct __index_header_record {
-  u16 root_rrn;
-  u16 btree_node_size;
-  u16 header_size;
-  char *free_rrn_address;
-} index_header_record;
 
 typedef struct __io_buf {
   char address[MAX_ADDRESS];
   FILE *fp;
-  // TODO change this headers
-  data_header_record *hr;
-  index_header_record *br;
   GenericLinkedList *free_rrn;
 } io_buf; 
 
 typedef struct __BTree {
   btree_node *root;
-  io_buf *idx;
-  io_buf *data;
-  GenericQueue *q;
-  btree_config config; // TODO integrate
+  io_buf *io_idx;
+  io_buf *io_data;
+  GenericQueue *cache;
+  btree_config config;
 } BTree;
 
 void print_gq_btree_node(void *data);
 
-BTree *alloc_tree_buf(u32 order);
-
 BTree *create_btree(const char *config_file);
-
-bool build_tree(BTree *b, u32 n);
 
 btree_status handle_underflow(BTree *b, btree_node *p);
 
@@ -101,11 +81,9 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
 
 btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos);
 
-void create_index_file(io_buf *io, const char *file_name);
+void create_index_file(BTree *b);
 
 void clear_btree(BTree *b);
-
-int write_root_rrn(BTree *b, u16 rrn);
 
 btree_node *b_search(BTree *b, const char *s, u16 *return_pos);
 
@@ -128,12 +106,6 @@ void print_btree_node(btree_node *btree_node);
 
 btree_node *load_btree_node(BTree *b, u16 rrn);
 
-void populate_index_header(index_header_record *bh, const char *file_name);
-
-void load_index_header(io_buf *io);
-
-int write_index_header(io_buf *io);
-
 int write_index_record(BTree *b, btree_node *p);
 
 btree_node *alloc_btree_node(u32 order);
@@ -152,31 +124,19 @@ bool load_list(GenericLinkedList *i, char* s);
 
 u16 get_free_rrn(GenericLinkedList *i);
 
-u16 get_last_free_rrn(GenericLinkedList *i);
-
-u16 *load_rrns(GenericLinkedList *i);
-
 io_buf *alloc_io_buf(void);
 
-#define load_index_file(io, file_name) load_file(io, file_name, "index")
-#define load_data_file(io, file_name) load_file(io, file_name, "data")
-void load_file(io_buf *io, char *file_name, const char *type);
+#define load_index_file(btree) load_file(btree, "index")
+#define load_data_file(btree) load_file(btree, "data")
+void load_file(BTree *b, const char *type);
 
-void create_data_file(io_buf *io, char *file_name, u32 schema_size);
+void create_data_file(BTree *b);
 
-void load_data_header(io_buf *io);
+void *load_data_record(BTree *b, u16 rrn);
 
-void *load_data_record(io_buf *io, u16 rrn);
-
-void populate_header(data_header_record *hp, const char *file_name, u32 schema_size);
-
-void prepend_data_header(io_buf *io);
-
-void write_data_header(io_buf *io);
-
-void write_data_record(io_buf *io, void *d, u16 rrn);
+void write_data_record(BTree *b, void *d, u16 rrn);
 
 void clear_io_buf(io_buf *io_buf);
 
-void d_insert(io_buf *data, void *d, GenericLinkedList *free_rrn, u16 rrn);
+void d_insert(BTree *b, void *d, GenericLinkedList *free_rrn, u16 rrn);
 #endif

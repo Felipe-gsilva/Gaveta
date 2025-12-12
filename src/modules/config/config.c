@@ -38,8 +38,11 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
 
   // load cfg
   while(!feof(fp)) {
-    // read a json line
-    fscanf(fp, " %[^:]: %[^,\n]", key, value);
+    // read a line
+    fscanf(fp, " %[^:]: %s", key, value);
+    printf("Key: %s, Value: %s\n", key, value);
+    if (strcmp(key, "{") == 0 || strcmp(key, "}") == 0)
+      continue;
 
     if (strstr(key, "order"))
       cfg->order = atoi(value);
@@ -47,6 +50,10 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
       sprintf(cfg->index_file, "%s", end_str(value + 1));
     else if (strstr(key, "data_file"))
       sprintf(cfg->data_file, "%s", end_str(value + 1)); 
+    else if (strstr(key, "idx_free_rrn_address"))
+      sprintf(cfg->idx_free_rrn_address, "%s", end_str(value + 1));
+    else if (strstr(key, "data_free_rrn_address"))
+      sprintf(cfg->data_free_rrn_address, "%s", end_str(value + 1));
     else if (strstr(key, "schema_size"))
       cfg->schema_size = atoi(value);
     else if (strstr(key, "schema_data"))
@@ -61,15 +68,39 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
     return false;
   }
 
+  char cmd[STRING_BUFFER_SIZE];
+  #ifdef WIN32
+    sprintf(cmd, "mkdir assets\\public\\%s", cfg->name);
+    system(cmd);
+  #else
+    sprintf(cmd, "mkdir -p assets/public/%s", cfg->name);
+    system(cmd);
+  #endif
+
+
   if (cfg->order <= 0 || cfg->order >= 100) cfg->order = 20;
   
   if (cfg->schema_size == 0) cfg->schema_size = sizeof(key);
 
   if (strlen(cfg->name) <= 0) return false;
 
-  sprintf(cfg->index_file, "assets/public/%s.idx", cfg->name);
-  sprintf(cfg->data_file, "assets/public/%s.dat", cfg->name);
+  sprintf(cfg->index_file, "assets/public/%s/BTree.idx", cfg->name);
+  sprintf(cfg->data_file, "assets/public/%s/BTree.dat", cfg->name);
+
+  if (strlen(cfg->idx_free_rrn_address) == 0)
+    sprintf(cfg->idx_free_rrn_address, "assets/public/%s/idx_free_rrn.addr", cfg->name);
+
+  if (strlen(cfg->data_free_rrn_address) == 0)
+    sprintf(cfg->data_free_rrn_address, "assets/public/%s/data_free_rrn.addr", cfg->name);
 
   g_info("Btree config file for %s loaded", cfg->name);
+  return true;
+}
+
+bool write_btree_config(const char *file_name, btree_config *cfg){
+  assert(cfg && file_name);
+  FILE *fp = fopen(file_name, "a");
+
+  fclose(fp);
   return true;
 }

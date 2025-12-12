@@ -35,7 +35,7 @@ void print_generic_linkedlist(GenericLinkedList **ll, print_callback_fn printer)
       void*: (T){0}, \
       default: print_int_node))
 
-#define export_ll(ll,  path, T) export_ll_to_disk(ll, path, \
+#define write_ll(ll, path, T) export_ll_to_disk(ll, path, \
     _Generic((T){0}, \
       int:    write_int_node,    \
       u32:    write_u32_node,    \

@@ -7,13 +7,15 @@
 
 typedef struct __btree_config {
   char name[BIG_STR_BUFF_SIZE];
-  u32 order;
-  char index_file[MAX_ADDRESS];
-  char data_file[MAX_ADDRESS];
-  void *schema; // not usable yet
-  u32 schema_size; // using this as a placeholder
+  char index_file[MAX_ADDRESS], idx_free_rrn_address[MAX_ADDRESS],
+      data_free_rrn_address[MAX_ADDRESS], data_file[MAX_ADDRESS];
+  void *schema;           // not usable yet
+  u32 schema_size, order; // using this as a placeholder
+  u16 root_rrn, header_size;
 } btree_config;
 
 bool read_btree_config(const char *file_name, btree_config *cfg);
+
+bool write_btree_config(const char *file_name, btree_config *cfg);
 
 #endif

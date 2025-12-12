@@ -6,6 +6,55 @@
 btree_node **g_allocated;
 u16 g_n = 0;
 
+static BTree *alloc_tree_buf(u32 order) {
+  BTree *b = g_alloc(sizeof(BTree));
+  if (!b) {
+    g_error(BTREE_ERROR, "Could not allocate b_tree_buf_BUFFER");
+    return NULL;
+  }
+
+  b->root = NULL;
+  b->io_idx = alloc_io_buf();
+  if (!b->io_idx) {
+    g_dealloc(b);
+    g_error(BTREE_ERROR, "Could not allocate io_buf");
+    return NULL;
+  }
+  b->io_data = alloc_io_buf();
+  if (!b->io_data) {
+    g_dealloc(b->io_idx);
+    g_dealloc(b);
+    g_error(BTREE_ERROR, "Could not allocate io_buf");
+    return NULL;
+  }
+
+  b->cache = NULL;
+  init_gq(&b->cache, sizeof(btree_node));
+
+  if (!b->cache) {
+    g_dealloc(b->io_idx);
+    g_dealloc(b->io_data);
+    g_dealloc(b);
+    g_error(BTREE_ERROR, "Could not allocate queue");
+    return NULL;
+  }
+
+  b->io_idx->free_rrn = NULL;
+  init_ll(&b->io_idx->free_rrn, sizeof(u16));
+  if (!b->io_idx->free_rrn) {
+    g_dealloc(b->cache);
+    g_dealloc(b->io_idx);
+    g_dealloc(b->io_data);
+    g_dealloc(b);
+    g_error(BTREE_ERROR, "Could not allocate ilist");
+    return NULL;
+  }
+
+  g_info("Allocated B_TREE_BUFFER");
+  return b;
+}
+
+
 BTree *create_btree(const char *config_file) {
   btree_config cfg;
 
@@ -22,32 +71,23 @@ BTree *create_btree(const char *config_file) {
   }
 
   b->config = cfg;
-  char index_file[MAX_ADDRESS], data_file[MAX_ADDRESS];
-  sprintf(index_file, "assets/public/btree%c%s.idx", '-', b->config.name);
-  sprintf(data_file, "assets/public/btree%c%s.dat", '-', b->config.name);
+  create_index_file(b);
+  create_data_file(b);
 
-  create_index_file(b->idx, index_file);
-  create_data_file(b->data, data_file, b->config.schema_size);
+  load_index_file(b);
+  load_data_file(b);
 
-  load_index_file(b->idx, index_file);
-  load_data_file(b->data, data_file);
-
-  b->root = load_btree_node(b, b->idx->br->root_rrn);
+  b->root = load_btree_node(b, b->config.root_rrn);
 
   if (b->root == NULL) {
     g_info("B-Tree is empty, building new tree");
     int k = 0;
-    insert_ll(&b->idx->free_rrn, &k);
-    b->idx->br->root_rrn = k;
-    b->idx->br->btree_node_size = sizeof(btree_node);
-    // yet to check
-    b->idx->hr->header_size = sizeof(data_header_record) + b->config.schema_size;
-    build_tree(b, b->config.order);
-    print_gq(&b->q, btree_node);
-
-    k = b->config.order + 1;
-    insert_ll(&b->idx->free_rrn, &k);
-    write_index_header(b->idx);
+    insert_ll(&b->io_idx->free_rrn, &k);
+    insert_ll(&b->io_data->free_rrn, &k);
+    print_gq(&b->cache, btree_node);
+    write_ll(&b->io_idx->free_rrn, b->config.idx_free_rrn_address, u32);
+    write_ll(&b->io_data->free_rrn, b->config.data_free_rrn_address, u32);
+    write_btree_config(config_file, &b->config);
   }
 
   return b;
@@ -59,53 +99,6 @@ void print_gq_btree_node(void *data) {
 }
 
 
-BTree *alloc_tree_buf(u32 order) {
-  BTree *b = g_alloc(sizeof(BTree));
-  if (!b) {
-    g_error(BTREE_ERROR, "Could not allocate b_tree_buf_BUFFER");
-    return NULL;
-  }
-
-  b->root = NULL;
-  b->idx = alloc_io_buf();
-  if (!b->idx) {
-    g_dealloc(b);
-    g_error(BTREE_ERROR, "Could not allocate io_buf");
-    return NULL;
-  }
-  b->data = alloc_io_buf();
-  if (!b->data) {
-    g_dealloc(b->idx);
-    g_dealloc(b);
-    g_error(BTREE_ERROR, "Could not allocate io_buf");
-    return NULL;
-  }
-
-  b->q = NULL;
-  init_gq(&b->q, sizeof(btree_node));
-
-  if (!b->q) {
-    g_dealloc(b->idx);
-    g_dealloc(b->data);
-    g_dealloc(b);
-    g_error(BTREE_ERROR, "Could not allocate queue");
-    return NULL;
-  }
-
-  b->idx->free_rrn = NULL;
-  init_ll(&b->idx->free_rrn, sizeof(u16));
-  if (!b->idx->free_rrn) {
-    g_dealloc(b->q);
-    g_dealloc(b->idx);
-    g_dealloc(b->data);
-    g_dealloc(b);
-    g_error(BTREE_ERROR, "Could not allocate ilist");
-    return NULL;
-  }
-
-  g_info("Allocated B_TREE_BUFFER");
-  return b;
-}
 
 bool compare_btree_nodes(void *v1, void *v2) {
   btree_node *b1 = (btree_node*) v1;
@@ -116,14 +109,14 @@ bool compare_btree_nodes(void *v1, void *v2) {
 
 void clear_btree(BTree *b) {
   if (b) {
-    clear_ll(&b->idx->free_rrn);
-    clear_gq(&b->q);
-    clear_io_buf(b->idx);
-    clear_io_buf(b->data);
+    clear_ll(&b->io_idx->free_rrn);
+    clear_gq(&b->cache);
+    clear_io_buf(b->io_idx);
+    clear_io_buf(b->io_data);
     if (b->root) {
       btree_node *q_btree_node = g_alloc(sizeof(btree_node));
       GenericQueue *node = g_alloc(sizeof(GenericQueue));
-      search_gq(&b->q, &b->root, compare_btree_nodes, &node);
+      search_gq(&b->cache, &b->root, compare_btree_nodes, &node);
       if (node->data) q_btree_node = *(btree_node **)node->data;
       if (!q_btree_node) {
         b->root = NULL;
@@ -138,66 +131,8 @@ void clear_btree(BTree *b) {
   g_debug(BTREE_STATUS, "B_TREE_BUFFER cleared");
 }
 
-void populate_index_header(index_header_record *bh, const char *file_name) {
-  if (bh == NULL) {
-    g_error(BTREE_ERROR, "Header pointer is NULL, cannot populate");
-    return;
-  }
-
-  bh->btree_node_size = sizeof(btree_node);
-  bh->root_rrn = 0;
-  strcpy(bh->free_rrn_address, file_name);
-  bh->free_rrn_address[strlen(file_name) + 1] = '\0';
-  bh->header_size = (sizeof(u16) * 3) + strlen(file_name) + 1;
-}
-
-bool build_tree(BTree *b, u32 n) {
-  if (!b || !b->data) {
-    g_error(BTREE_ERROR, "Invalid parameters for building a tree");
-    return false;
-  }
-
-  if (!b->idx->free_rrn) {
-    printf("Loading idx free RRN list from %s\n", b->idx->br->free_rrn_address);
-    load_list(b->idx->free_rrn, b->idx->br->free_rrn_address);
-    if (!b->idx->free_rrn) {
-      g_error(BTREE_ERROR, "Could not load index free RRN list");
-      return false;
-    }
-  }
-
-  if (!b->data->free_rrn) {
-    printf("Loading data free RRN list from %s\n", b->data->br->free_rrn_address);
-    load_list(b->data->free_rrn, b->data->br->free_rrn_address);
-    if (!b->data->free_rrn) {
-      g_error(BTREE_ERROR, "Could not load data free RRN list");
-      return false;
-    }
-  }
-
-  data_record *d;
-
-  for (int i = 0; i < n; i++) {
-    d = load_data_record(b->data, i);
-    if (!d) {
-      printf("!!Failed to load record %d\n", i);
-      continue;
-    }
-
-    btree_status status = b_insert(b, d, i);
-    if ((status != BTREE_SUCCESS) && (status != BTREE_INSERTED_IN_BTREE_NODE)) {
-      g_crit_error(BTREE_ERROR, "!!Failed to insert record %d, error: %d\n", i - 1, status);
-    }
-  }
-  if (d)
-    g_dealloc(d);
-
-  g_info("Built tree with order %d and %d records", b->config.order, n);
-  return true;
-}
-
 btree_node *load_btree_node(BTree *b, u16 rrn) {
-  if (!b || !b->idx) {
+  if (!b || !b->io_idx) {
     g_error(BTREE_ERROR, "Error: invalid parameters");
     return NULL;
   }
@@ -206,7 +141,7 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
   bn->rrn = rrn;
   GenericQueue *node = g_alloc(sizeof(GenericQueue));
 
-  if(!search_gq(&b->q, &rrn, compare_btree_nodes, &node)) {
+  if(!search_gq(&b->cache, &rrn, compare_btree_nodes, &node)) {
     g_dealloc(bn);
     g_dealloc(node);
     g_debug(BTREE_STATUS, "Btree_node not found in queue");
@@ -227,43 +162,22 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
 
   bn->rrn = rrn;
 
-  size_t byte_offset =
-      (size_t)(b->idx->br->header_size) + ((size_t)(b->idx->br->btree_node_size) * rrn);
+  size_t byte_offset = (size_t)(sizeof(btree_node) * rrn);
 
-  if (fseek(b->idx->fp, byte_offset, SEEK_SET) != 0) {
+  if (fseek(b->io_idx->fp, byte_offset, SEEK_SET) != 0) {
     g_dealloc(bn);
     return NULL;
   }
 
-  size_t bytes_read = fread(bn, 1, b->idx->br->btree_node_size, b->idx->fp);
-  if (bytes_read != b->idx->br->btree_node_size) {
+  size_t bytes_read = fread(bn, 1, sizeof(btree_node), b->io_idx->fp);
+  if (bytes_read != sizeof(btree_node)) {
     g_dealloc(bn);
     return NULL;
   }
 
-  push_gq(&b->q, &bn);
+  push_gq(&b->cache, &bn);
 
   return bn;
-}
-
-int write_root_rrn(BTree *b, u16 rrn) {
-  if (!b) {
-    g_error(BTREE_ERROR, "Error: NULL BTree");
-    return BTREE_ERROR_IO;
-  }
-
-  b->idx->br->root_rrn = rrn;
-
-  fseek(b->idx->fp, 0, SEEK_SET);
-  size_t flag = fwrite(&rrn, sizeof(u16), 1, b->idx->fp);
-  if (flag != 1) {
-    g_error(BTREE_ERROR, "Error: Could not update root rrn");
-    exit(-1);
-  }
-
-  fflush(b->idx->fp);
-
-  return BTREE_SUCCESS;
 }
 
 void b_update(BTree *b, GenericLinkedList *free_rrn,
@@ -324,10 +238,8 @@ void b_range_search(BTree *b, key_range *range) {
       if (strcmp(curr->keys[i].id, range->start_id->id) >= 0) {
         found_any = true;
         data_record *record =
-            load_data_record(b->data, curr->keys[i].data_register_rrn);
+            load_data_record(b, curr->keys[i].data_register_rrn);
         if (record) {
-          // TODO not used print_data_record, since no schema yet exists
-          // print_data_record(record); 
           g_dealloc(record);
         }
       }
@@ -349,7 +261,7 @@ void b_range_search(BTree *b, key_range *range) {
 int search_in_btree_node(btree_node *p, key key, int *return_pos) {
   if (!p) {
     g_error(BTREE_ERROR, "Error: no btree_node");
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
   }
 
   for (int i = 0; i < p->keys_num; i++) {
@@ -403,7 +315,7 @@ u16 search_key(BTree *b, btree_node *p, key k, u16 *found_pos,
 
   u16 ret = search_key(b, next, k, found_pos, return_btree_node);
 
-  if (next != b->root && !search_gq(&b->q, &next, compare_btree_nodes, NULL)) {
+  if (next != b->root && !search_gq(&b->cache, &next, compare_btree_nodes, NULL)) {
     g_dealloc(next);
   }
 
@@ -414,7 +326,7 @@ void populate_key(key *k, data_record *d, u16 rrn) {
   if (!k || !d)
     return;
 
-  strncpy(k->id, d->key, 0); // TODO key size minus null terminator
+  strncpy(k->id, d->k->id, 0); // TODO key size minus null terminator
   k->data_register_rrn = rrn;
 
   g_debug(BTREE_STATUS, "Populated key with ID: %s and data RRN: %hu\n", k->id,
@@ -423,7 +335,7 @@ void populate_key(key *k, data_record *d, u16 rrn) {
 
 btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos) {
   if (!p)
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   for (int i = p->keys_num - 1; i >= pos; i--) {
     p->keys[i + 1] = p->keys[i];
@@ -448,8 +360,8 @@ btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int
 }
 
 btree_status b_insert(BTree *b, void *d, u16 rrn) {
-  if (!b || !b->data || !d)
-    return BTREE_ERROR_INVALID_btree_node;
+  if (!b || !b->io_data || !d)
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   key new_key;
   populate_key(&new_key, d, rrn);
@@ -459,7 +371,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     if (!b->root)
       return BTREE_ERROR_MEMORY;
 
-    b->root->rrn = get_free_rrn(b->idx->free_rrn);
+    b->root->rrn = get_free_rrn(b->io_idx->free_rrn);
 
     if (b->root->rrn < 0) {
       g_dealloc(b->root);
@@ -490,7 +402,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     if (!new_root)
       return BTREE_ERROR_MEMORY;
 
-    new_root->rrn = get_free_rrn(b->idx->free_rrn);
+    new_root->rrn = get_free_rrn(b->io_idx->free_rrn);
     if (new_root->rrn < 0) {
       g_dealloc(new_root);
       return BTREE_ERROR_IO;
@@ -504,14 +416,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     new_root->child_num = 2;
 
     b->root = new_root;
-
-    btree_status write_status = write_root_rrn(b, b->root->rrn);
-    if (write_status < 0)
-      return write_status;
-
-    write_status = write_index_record(b, b->root);
-    if (write_status < 0)
-      return write_status;
+    b->config.root_rrn = new_root->rrn;
   }
 
   return BTREE_SUCCESS;
@@ -520,7 +425,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
 btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_key,
                      key *incoming_key, bool *promoted) {
   if (!b || !p || !r_child || !promo_key || !incoming_key)
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   key temp_keys[b->config.order];
   u16 temp_children[b->config.order + 1];
@@ -556,7 +461,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
   if (!new_btree_node)
     return BTREE_ERROR_MEMORY;
 
-  new_btree_node->rrn = get_free_rrn(b->idx->free_rrn);
+  new_btree_node->rrn = get_free_rrn(b->io_idx->free_rrn);
   if (new_btree_node->rrn == (u16)-1) {
     g_dealloc(new_btree_node);
     return BTREE_ERROR_IO;
@@ -627,7 +532,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
 btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
                         btree_node **r_child, bool *promoted) {
   if (!b || !promo_key || !p)
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   int pos;
   btree_status status = search_in_btree_node(p, k, &pos);
@@ -643,7 +548,7 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     btree_node *temp_child = NULL;
     status = insert_key(b, child, k, &temp_key, &temp_child, promoted);
 
-    if (child != b->root && !search_gq(&b->q, &child, compare_btree_nodes, NULL)) {
+    if (child != b->root && !search_gq(&b->cache, &child, compare_btree_nodes, NULL)) {
       clear_btree_node(child);
     }
 
@@ -676,8 +581,8 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
 }
 
 btree_status b_remove(BTree *b, char *key_id) {
-  if (!b || !b->root || !b->data || !key_id)
-    return BTREE_ERROR_INVALID_btree_node;
+  if (!b || !b->root || !b->io_data || !key_id)
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   u16 pos;
   btree_node *p = b_search(b, key_id, &pos);
@@ -696,14 +601,14 @@ btree_status b_remove(BTree *b, char *key_id) {
     p->keys_num--;
 
     if (data_rrn != (u16)-1) {
-      if (fseek(b->data->fp,
-                b->data->hr->header_size + (data_rrn * sizeof(data_record)),
+      if (fseek(b->io_data->fp,
+                (sizeof(data_record) + b->config.schema_size) * data_rrn,
                 SEEK_SET) == 0) {
         data_record empty_record;
         memset(&empty_record, '*', sizeof(data_record));
-        fwrite(&empty_record, sizeof(data_record), 1, b->data->fp);
-        fflush(b->data->fp);
-        insert_ll(&b->idx->free_rrn, &data_rrn);
+        fwrite(&empty_record, sizeof(data_record), 1, b->io_data->fp);
+        fflush(b->io_data->fp);
+        insert_ll(&b->io_idx->free_rrn, &data_rrn);
       }
     }
 
@@ -747,7 +652,7 @@ btree_status b_remove(BTree *b, char *key_id) {
 btree_status redistribute(BTree *b, btree_node *donor, btree_node *receiver,
                           bool from_left) {
   if (!b || !donor || !receiver)
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   if (from_left) {
     for (int i = receiver->keys_num; i > 0; i--)
@@ -774,7 +679,7 @@ btree_status redistribute(BTree *b, btree_node *donor, btree_node *receiver,
 
 btree_status merge(BTree *b, btree_node *left, btree_node *right) {
   if (!b || !left || !right)
-    return BTREE_ERROR_INVALID_btree_node;
+    return BTREE_ERROR_INVALID_BTREE_NODE;
 
   for (int i = 0; i < right->keys_num; i++) {
     left->keys[left->keys_num + i] = right->keys[i];
@@ -787,7 +692,7 @@ btree_status merge(BTree *b, btree_node *left, btree_node *right) {
   if (status < 0)
     return status;
 
-  insert_ll(&b->idx->free_rrn, &right->rrn);
+  insert_ll(&b->io_idx->free_rrn, &right->rrn);
 
   return BTREE_SUCCESS;
 }
@@ -843,173 +748,43 @@ void print_btree_node(btree_node *p) {
   }
 }
 
-int write_index_header(io_buf *io) {
-  if (!io || !io->fp) {
-    g_error(BTREE_ERROR, "NULL file");
-    return BTREE_ERROR_IO;
-  }
-  if (io->br == NULL) {
-    io->br = g_alloc(sizeof(index_header_record));
-    if (io->br == NULL) {
-      g_error(BTREE_ERROR, "Memory allocation error");
-      return BTREE_ERROR_MEMORY;
-    }
-  }
-  if (io->br->btree_node_size == 0) {
-    g_error(BTREE_ERROR, "Error: btree_node size == 0");
-    return BTREE_ERROR_INVALID_btree_node;
-  }
-
-  size_t free_rrn_len = strlen(io->br->free_rrn_address) + 1;
-  io->br->header_size = sizeof(u16) * 3 + free_rrn_len;
-
-  fseek(io->fp, 0, SEEK_SET);
-
-  if (fwrite(&io->br->root_rrn, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while writing root_rrn");
-    return BTREE_ERROR_IO;
-  }
-
-  if (fwrite(&io->br->btree_node_size, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while writing btree_node_size");
-    return BTREE_ERROR_IO;
-  }
-
-  if (fwrite(&io->br->header_size, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while writing size");
-    return BTREE_ERROR_IO;
-  }
-
-  if (fwrite(io->br->free_rrn_address, free_rrn_len, 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while writing free_rrn_address");
-    return BTREE_ERROR_IO;
-  }
-
-  g_info("Successfully written on index: root_rrn: %hu, btree_node_size: %hu, "
-         "size: %hu, "
-         "free_rrn_address: %s\n",
-         io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
-         io->br->free_rrn_address);
-
-  fflush(io->fp);
-  return BTREE_SUCCESS;
-}
-
-void load_index_header(io_buf *io) {
-  if (!io || !io->fp) {
-    g_error(BTREE_ERROR, "Invalid IO buffer or file pointer");
-    return;
-  }
-
-  if (!io->br) {
-    io->br = g_alloc(sizeof(index_header_record));
-    if (!io->br) {
-      g_error(BTREE_ERROR, "Memory allocation error");
-      return;
-    }
-    memset(io->br, 0, sizeof(index_header_record));
-  }
-
-  fseek(io->fp, 0, SEEK_SET);
-
-  if (fread(&io->br->root_rrn, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error reading root_rrn");
-    return;
-  }
-
-  if (fread(&io->br->btree_node_size, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error reading btree_node_size");
-    return;
-  }
-
-  if (fread(&io->br->header_size, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error reading size");
-    return;
-  }
-
-  g_info("Loaded index header: root_rrn: %hu\tbtree_node_size: %hu\tsize: %hu\n", io->br->root_rrn,
-         io->br->btree_node_size, io->br->header_size);
-
-  size_t rrn_len = io->br->header_size - (3 * sizeof(u16));
-
-  io->br->free_rrn_address = g_alloc(rrn_len + 1);
-  if (!io->br->free_rrn_address) {
-    g_error(BTREE_ERROR, "Memory allocation error for free_rrn_address");
-    return;
-  }
-
-  if (fread(io->br->free_rrn_address, rrn_len, 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error reading free_rrn_address");
-    g_dealloc(io->br->free_rrn_address);
-    io->br->free_rrn_address = NULL;
-    return;
-  }
-  io->br->free_rrn_address[rrn_len] = '\0';
-
-  g_info("Index Header Record Loaded\n-->index_header: root_rrn: %hu btree_node_size: %hu size: %hu "
-         "free_rrn_list: %s\n",
-         io->br->root_rrn, io->br->btree_node_size, io->br->header_size,
-         io->br->free_rrn_address);
-}
-
 btree_status write_index_record(BTree *b, btree_node *p) {
-  if (!b || !b->idx || !p)
+  if (!b || !b->io_idx || !p)
     return BTREE_ERROR_IO;
 
-  int byte_offset = b->idx->br->header_size + (b->idx->br->btree_node_size * p->rrn);
+  int byte_offset = ((sizeof(btree_node) + b->config.schema_size) * p->rrn);
 
-  if (fseek(b->idx->fp, byte_offset, SEEK_SET)) {
+  if (fseek(b->io_idx->fp, byte_offset, SEEK_SET)) {
     g_error(BTREE_ERROR, "Error: could not fseek");
     return BTREE_ERROR_IO;
   }
 
-  size_t written = fwrite(p, b->idx->br->btree_node_size, 1, b->idx->fp);
+  size_t written = fwrite(p, sizeof(btree_node), 1, b->io_idx->fp);
   if (written != 1) {
     g_error(BTREE_ERROR, "Error: could not write btree_node");
     return BTREE_ERROR_IO;
   }
 
-  fflush(b->idx->fp);
+  fflush(b->io_idx->fp);
 
   g_info("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
 
-  if (!search_gq(&b->q, &p, compare_btree_nodes, NULL)) {
-    push_gq(&b->q, &p);
+  if (!search_gq(&b->cache, &p, compare_btree_nodes, NULL)) {
+    push_gq(&b->cache, &p);
   }
 
   return BTREE_SUCCESS;
 }
 
-void create_index_file(io_buf *io, const char *file_name) {
+void create_index_file(BTree *b) {
+  io_buf *io = b->io_idx;
+  char *file_name = b->config.index_file;
   if (!io || !file_name) {
     g_error(BTREE_ERROR, "Invalid io buffer or file name");
     return;
   }
 
   strcpy(io->address, file_name);
-
-  if (io->hr == NULL) {
-    io->hr = g_alloc(sizeof(data_header_record));
-    if (io->hr == NULL) {
-      g_error(BTREE_ERROR, "Memory allocation failed for data_header_record");
-      return;
-    }
-  }
-
-  if (io->br == NULL) {
-    g_dealloc(io->hr);
-    io->hr = NULL;
-    io->br = g_alloc(sizeof(index_header_record));
-    if (io->br == NULL) {
-      g_error(BTREE_ERROR, "Memory allocation failed for index_header_record");
-      return;
-    }
-    io->br->free_rrn_address = g_alloc(sizeof(char) * MAX_ADDRESS);
-    if (io->br->free_rrn_address == NULL) {
-      g_error(BTREE_ERROR, "Memory allocation failed for free_rrn_address");
-      return;
-    }
-  }
 
   if (io->fp != NULL) {
     g_error(BTREE_ERROR, "File already opened");
@@ -1019,7 +794,7 @@ void create_index_file(io_buf *io, const char *file_name) {
   g_debug(DISK_STATUS, "Loading file: %s\n", io->address);
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
-    g_error(DISK_ERROR, "Error opening file: %s. Creating it...\n", io->address);
+    g_warn(DISK_ERROR, "Error opening file: %s. Creating it...\n", io->address);
     io->fp = fopen(io->address, "wb");
     if (io->fp) {
       fclose(io->fp);
@@ -1033,15 +808,6 @@ void create_index_file(io_buf *io, const char *file_name) {
 
   char list_name[MAX_ADDRESS];
   sprintf(list_name, "%s_free_rrn_list.bin", file_name);
-
-  load_index_header(io);
-
-  if (strcmp(io->br->free_rrn_address, list_name) != 0) {
-    strcpy(io->br->free_rrn_address, list_name);
-    populate_index_header(io->br, list_name);
-    write_index_header(io);
-  }
-
   g_info("Index file created successfully");
 }
 
@@ -1129,7 +895,7 @@ btree_node *find_parent(BTree *b, btree_node *current, btree_node *target) {
 
       btree_node *result = find_parent(b, child, target);
 
-      if (child != b->root && !search_gq(&b->q, &child, compare_btree_nodes, NULL)) {
+      if (child != b->root && !search_gq(&b->cache, &child, compare_btree_nodes, NULL)) {
         clear_btree_node(child);
       }
 
@@ -1162,18 +928,6 @@ void sort_list(u16 A[], int n) {
     }
     h = h / 3;
   }
-}
-
-void write_rrn_list_to_file(GenericLinkedList *i, char *file_name) {
-  if (!i)
-    return;
-
-  if (is_ll_empty(&i)) {
-    g_error(BTREE_ERROR, "Error: RRN list is empty");
-    return;
-  }
-
-  export_ll(&i, file_name, int);
 }
 
 bool load_list(GenericLinkedList *i, char *s) {
@@ -1219,97 +973,25 @@ io_buf *alloc_io_buf(void) {
     g_error(BTREE_ERROR, "Could not allocate IO_BUFFER");
     return NULL;
   }
-
-  io->hr = g_alloc(sizeof(data_header_record));
-  io->br = g_alloc(sizeof(index_header_record));
-  if (!io->hr || !io->br) {
-    g_error(BTREE_ERROR, "Could not allocate header records");
-    g_dealloc(io);
-    return NULL;
-  }
-
-  io->hr->free_rrn_address = g_alloc(sizeof(char) * MAX_ADDRESS);
-  io->br->free_rrn_address = g_alloc(sizeof(char) * MAX_ADDRESS);
-  if (!io->hr->free_rrn_address || !io->br->free_rrn_address) {
-    g_error(BTREE_ERROR, "Could not allocate free_rrn_address");
-    g_dealloc(io->hr);
-    g_dealloc(io->br);
-    g_dealloc(io);
-    return NULL;
-  }
+  init_ll(&io->free_rrn, sizeof(u16));
 
   g_info("Allocated IO_BUFFER");
   return io;
 }
 
-void d_insert(io_buf *io, void *d, GenericLinkedList *ld, u16 rrn) {
-  if (!io || !d || !ld) {
+void d_insert(BTree *b, void *d, GenericLinkedList *ld, u16 rrn) {
+  if (!b || !b->io_data || !d || !ld) {
     g_error(BTREE_ERROR, "Error: NULL parameters on d_insert");
+    return;
   }
   if (rrn == (u16)-1)
     rrn = get_free_rrn(ld);
 
-  write_data_record(io, d, rrn);
+  write_data_record(b, d, rrn);
 }
 
-void load_data_header(io_buf *io) {
-  if (!io || !io->fp) {
-    g_error(BTREE_ERROR, "Invalid IO buffer or file pointer");
-    return;
-  }
-
-  data_header_record temp_hr = {0};
-
-  fseek(io->fp, 0, SEEK_SET);
-  if (fread(&temp_hr.header_size, sizeof(u16), 1, io->fp) != 1 ||
-      fread(&temp_hr.record_size, sizeof(u16), 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while reading header record (fixed part)");
-    return;
-  }
-
-  g_debug(BTREE_STATUS, "Header_size: %hu \t Record size: %hu\n", temp_hr.header_size,
-          temp_hr.record_size);
-
-  if (!io->hr) {
-    io->hr = g_alloc(sizeof(data_header_record));
-    if (!io->hr) {
-      g_error(BTREE_ERROR, "Memory allocation error");
-      return;
-    }
-  }
-
-  if (temp_hr.header_size > MAX_ADDRESS || temp_hr.header_size < 4 ||
-      temp_hr.record_size != sizeof(data_record)) {
-    return;
-  }
-
-  io->hr->record_size = temp_hr.record_size;
-  io->hr->header_size = temp_hr.header_size;
-
-  size_t rrn_len = io->hr->header_size - (2 * sizeof(u16));
-
-  io->hr->free_rrn_address = g_alloc(rrn_len + 1);
-  if (!io->hr->free_rrn_address) {
-    g_error(BTREE_ERROR, "Memory allocation error for free_rrn_address");
-    return;
-  }
-
-  fseek(io->fp, sizeof(u16) * 2, SEEK_SET);
-  if (fread(io->hr->free_rrn_address, rrn_len, 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error while reading free_rrn_address");
-    g_dealloc(io->hr->free_rrn_address);
-    io->hr->free_rrn_address = NULL;
-    return;
-  }
-
-  io->hr->free_rrn_address[rrn_len] = '\0';
-
-  g_debug(BTREE_STATUS, "--> data_header: record_size: %hu size: %hu free_rrn_address: %s\n",
-          io->hr->record_size, io->hr->header_size, io->hr->free_rrn_address);
-}
-
-void *load_data_record(io_buf *io, u16 rrn) {
-  if (!io || !io->fp) {
+void *load_data_record(BTree *b, u16 rrn) {
+  if (!b->io_data || !b->io_data->fp) {
     g_error(BTREE_ERROR, "Invalid IO buffer or file pointer");
     return NULL;
   }
@@ -1321,17 +1003,15 @@ void *load_data_record(io_buf *io, u16 rrn) {
     return NULL;
   }
 
-  int byte_offset = io->hr->header_size + (io->hr->record_size * rrn);
-  g_debug(BTREE_STATUS, "Header size: %d, Record size: %d, RRN: %d, byte_offset: %d\n",
-         io->hr->header_size, io->hr->record_size, rrn, byte_offset);
+  int byte_offset = (sizeof(data_record) + b->config.schema_size) * rrn;
 
-  if (fseek(io->fp, byte_offset, SEEK_SET) != 0) {
+  if (fseek(b->io_data->fp, byte_offset, SEEK_SET) != 0) {
     g_error(BTREE_ERROR, "Error seeking to byte offset");
     g_dealloc(hr);
     return NULL;
   }
 
-  size_t t = fread(hr, sizeof(data_record), 1, io->fp);
+  size_t t = fread(hr, sizeof(data_record), 1, b->io_data->fp);
   if (t != 1) {
     g_error(BTREE_ERROR, "Error while reading data record");
     g_dealloc(hr);
@@ -1340,108 +1020,29 @@ void *load_data_record(io_buf *io, u16 rrn) {
   return hr;
 }
 
-void prepend_data_header(io_buf *io) {
-  if (!io || !io->fp || !io->hr || !io->hr->free_rrn_address) {
-    g_error(BTREE_ERROR, "Invalid input in prepend_data_header");
-    return;
-  }
-
-  size_t free_rrn_len = strlen(io->hr->free_rrn_address) + 1,
-         header_size = sizeof(u16) * 2 + free_rrn_len;
-
-  if (io->hr->header_size != header_size) {
-    io->hr->header_size = header_size;
-  }
-
-  fseek(io->fp, 0, SEEK_END);
-  long original_file_size = ftell(io->fp);
-
-  if (original_file_size <= 0) {
-    g_error(BTREE_ERROR, "File is empty, no content to prepend");
-    original_file_size = 0;
-  }
-
-  char *buffer = NULL;
-  if (original_file_size > 0) {
-    buffer = g_alloc(original_file_size);
-    if (buffer == NULL) {
-      g_error(BTREE_ERROR, "Memory allocation failed for file content");
-      return;
-    }
-
-    fseek(io->fp, 0, SEEK_SET);
-    if (fread(buffer, 1, original_file_size, io->fp) != original_file_size) {
-      g_error(BTREE_ERROR, "Error reading original file content");
-      g_dealloc(buffer);
-      return;
-    }
-  }
-
-  fclose(io->fp);
-  io->fp = fopen(io->address, "wb");
-  if (io->fp == NULL) {
-    g_error(BTREE_ERROR, "Error reopening file in write mode");
-    if (buffer)
-      g_dealloc(buffer);
-    return;
-  }
-
-  printf("free rrn address: %s\n", io->hr->free_rrn_address);
-  fseek(io->fp, 0, SEEK_SET);
-  if (fwrite(&io->hr->header_size, sizeof(u16), 1, io->fp) != 1 ||
-      fwrite(&io->hr->record_size, sizeof(u16), 1, io->fp) != 1 ||
-      fwrite(io->hr->free_rrn_address, free_rrn_len, 1, io->fp) != 1) {
-    g_error(BTREE_ERROR, "Error writing header to file");
-    if (buffer)
-      g_dealloc(buffer);
-    return;
-  }
-
-  if (buffer && original_file_size > 0) {
-    if (fwrite(buffer, 1, original_file_size, io->fp) != original_file_size) {
-      g_error(BTREE_ERROR, "Error writing original content after header");
-    }
-    g_dealloc(buffer);
-  }
-
-  g_info("Successfully written header: %hu %hu %s\n", io->hr->record_size, 
-         io->hr->header_size, io->hr->free_rrn_address);
-
-  fflush(io->fp);
-}
-
-void write_data_record(io_buf *io, void *d, u16 rrn) {
-  if (!io || !io->fp || !d) {
+void write_data_record(BTree *b, void *d, u16 rrn) {
+  if (!b->io_data || !b->io_data->fp || !d) {
     g_error(BTREE_ERROR, "Invalid input in write_data_record");
     return;
   }
 
-  int byte_offset = io->hr->header_size + (io->hr->record_size * rrn);
-  fseek(io->fp, byte_offset, SEEK_SET);
-  size_t t = fwrite(d, sizeof(data_record), 1, io->fp);
+  int byte_offset = (sizeof(data_record) + b->config.schema_size) * rrn;
+  fseek(b->io_data->fp, byte_offset, SEEK_SET);
+  size_t t = fwrite(d, sizeof(data_record), 1, b->io_data->fp);
   if (t != 1) {
     g_error(BTREE_ERROR, "Error while writing data record");
   }
 }
 
-void populate_header(data_header_record *hp, const char *file_name, u32 schema_size) {
-  assert(file_name != NULL && schema_size > 0);
-  if (hp == NULL) {
-    g_error(BTREE_ERROR, "Header pointer is NULL, cannot populate");
-    return;
-  }
-
-  hp->record_size = sizeof(data_record) + schema_size;
-  strcpy(hp->free_rrn_address, file_name);
-  hp->free_rrn_address[strlen(file_name) + 1] = '\0';
-  hp->header_size = strlen(file_name) + 1 + sizeof(u16) * 2;
-}
-
-void load_file(io_buf *io, char *file_name, const char *type) {
-  if (!file_name) {
+void load_file(BTree *b, const char *type) {
+  if (!b) {
     g_error(BTREE_ERROR, "ERROR: no file");
     return;
   }
+
+  bool is_data = strcmp(type, "data") == 0;
+  io_buf *io =  is_data ? b->io_data : b->io_idx;
+  const char* file_name = is_data ? b->config.data_file : b->config.index_file;
 
   if (io->fp != NULL) {
     g_error(BTREE_ERROR, "Buffer already filled. Closing logical link");
@@ -1462,60 +1063,23 @@ void load_file(io_buf *io, char *file_name, const char *type) {
     return;
   }
 
-  if (strcmp(type, "index") == 0) {
-    if (io->br == NULL) {
-      io->br = g_alloc(sizeof(index_header_record));
-      if (io->br == NULL) {
-        g_error(BTREE_ERROR, "Memory allocation failed for index_header_record");
-        return;
-      }
-    }
-    load_index_header(io);
-    if (!io->br || !io->hr)
-      exit(-1);
-  }
-
-  if (strcmp(type, "data") == 0) {
-    if (io->hr == NULL) {
-      io->hr = g_alloc(sizeof(data_header_record));
-      if (io->hr == NULL) {
-        g_error(BTREE_ERROR, "Memory allocation failed for data_header_record");
-        fclose(io->fp);
-        return;
-      }
-    }
-    load_data_header(io);
-  }
-  if (strcmp(type, "data") == 0 &&
-      (io->hr->record_size == 0 || io->hr->header_size == 0)) {
-    g_error(BTREE_ERROR, "Error: one or more inputs in data_header_record are 0");
-    fclose(io->fp);
-    return;
-  }
-
-  if (strcmp(type, "index") == 0 &&
-      (io->br->btree_node_size == 0 || io->br->header_size == 0)) {
-    g_error(BTREE_ERROR, "Error: one or more inputs in index_header_record are 0");
-    fclose(io->fp);
-    return;
-  }
-
-  if (strcmp(type, "data") == 0)
-    load_list(io->free_rrn, io->hr->free_rrn_address);
-  else if (strcmp(type, "index") == 0)
-    load_list(io->free_rrn, io->br->free_rrn_address);
+  if (is_data)
+    load_list(io->free_rrn, b->config.data_file);
+  else
+    load_list(io->free_rrn, b->config.index_file);
 
 
   g_info("Loaded %s", file_name);
 }
 
-void create_data_file(io_buf *io, char *file_name, u32 schema_size) {
-  if (!io || !file_name) {
+void create_data_file(BTree *b) {
+  io_buf *io = b->io_data;
+  if (!io) {
     g_error(BTREE_ERROR, "Invalid IO buffer or file name");
     return;
   }
 
-  strcpy(io->address, file_name);
+  strcpy(io->address, b->config.data_file);
 
   if (io->fp != NULL) {
     g_error(BTREE_ERROR, "File already open");
@@ -1524,7 +1088,7 @@ void create_data_file(io_buf *io, char *file_name, u32 schema_size) {
 
   int prepend = 0;
   char list_name[MAX_ADDRESS];
-  sprintf(list_name, "%s.dot", file_name);
+  sprintf(list_name, "%s.dot", b->config.data_file);
 
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {
@@ -1536,30 +1100,6 @@ void create_data_file(io_buf *io, char *file_name, u32 schema_size) {
     }
     fclose(io->fp);
     io->fp = fopen(io->address, "r+b");
-    prepend = 1;
-    populate_header(io->hr, list_name, schema_size);
-  } else {
-    if (io->hr == NULL) {
-      io->hr = g_alloc(sizeof(data_header_record));
-      if (io->hr == NULL) {
-        g_error(BTREE_ERROR, "Memory allocation failed for data_header_record");
-        fclose(io->fp);
-        return;
-      }
-    }
-
-    load_data_header(io);
-
-    if (io->hr->record_size != sizeof(data_record)) {
-      puts("needs to prepend");
-      prepend = 1;
-      populate_header(io->hr, list_name, schema_size);
-    }
-  }
-
-  if (prepend == 1) {
-    populate_header(io->hr, list_name, schema_size);
-    prepend_data_header(io);
   }
 
   g_info("Data file created successfully");
@@ -1572,18 +1112,6 @@ void clear_io_buf(io_buf *io) {
   if (io->fp) {
     fclose(io->fp);
     io->fp = NULL;
-  }
-
-  if (io->hr) {
-    g_dealloc(io->hr->free_rrn_address);
-    g_dealloc(io->hr);
-    io->hr = NULL;
-  }
-
-  if (io->br) {
-    g_dealloc(io->br->free_rrn_address);
-    g_dealloc(io->br);
-    io->br = NULL;
   }
 
   g_dealloc(io);
