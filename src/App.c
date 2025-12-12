@@ -46,24 +46,24 @@ void cli() {
       printf("Loaded BTrees:\n");
       for (u32 i = 0; i < app.btrees->size; i++) {
         BTree *btree;
-        darray_get(app.btrees, i, &btree);
+        darray_get(app.btrees, i, btree);
+        printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
+               btree->root ? btree->root->rrn : -1);
       }
-    } 
-    else if (strcmp(command, "clear") == 0) {
-      #ifdef _WIN32
-        system("cls");
-      #else
-        system("clear");
-      #endif
-    }
-    else if (strcmp(command, "help") == 0 || strcmp(command, "h") == 0 || strcmp(command, "?") == 0) {
+    } else if (strcmp(command, "clear") == 0) {
+#ifdef _WIN32
+      system("cls");
+#else
+      system("clear");
+#endif
+    } else if (strcmp(command, "help") == 0 || strcmp(command, "h") == 0 ||
+               strcmp(command, "?") == 0) {
       printf("Available commands:\n");
       printf("  list         - List all loaded BTrees\n");
       printf("  help, h, ?   - Show this help message\n");
       printf("  clear        - Clear the console screen\n");
       printf("  exit, quit   - Exit the application\n");
-    }
-    else {
+    } else {
       printf("Unknown command: %s\n", command);
     }
   }
@@ -86,10 +86,11 @@ int main(int argc, char **argv) {
     sprintf(full_path, "assets/configs/%s", config_file);
     BTree *btree = create_btree(full_path);
     if (btree) {
-      darray_push(app.btrees, &btree);
+      darray_push(app.btrees, btree);
       g_info("BTree loaded from config: %s", config_file);
     } else {
-      g_error(DEFAULT_STATUS, "Failed to create BTree from config: %s", config_file);
+      g_error(DEFAULT_STATUS, "Failed to create BTree from config: %s",
+              config_file);
     }
   }
   fclose(fp);

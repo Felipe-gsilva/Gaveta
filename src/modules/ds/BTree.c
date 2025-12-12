@@ -54,8 +54,34 @@ static BTree *alloc_tree_buf(u32 order) {
   return b;
 }
 
+static bool build_tree_from_data_file(BTree *b) {
+  if (!b || !b->io_data || !b->io_data->fp) {
+    g_error(BTREE_ERROR, "Invalid B-Tree or data file");
+    return false;
+  }
 
-BTree *create_btree(const char *config_file) {
+  fseek(b->io_data->fp, b->config.header_size, SEEK_SET);
+
+  u16 rrn = 0;
+  data_record *record = g_alloc(sizeof(data_record));
+  record->data = g_alloc(b->config.schema_size);
+  record->k = g_alloc(sizeof(key));
+
+  while (fread(record->data, 1, b->config.schema_size, b->io_data->fp) ==
+         b->config.schema_size) {
+    b_insert(b, record, rrn);
+    rrn++;
+  }
+
+  g_dealloc(record->data);
+  g_dealloc(record->k);
+  g_dealloc(record);
+
+  return true;
+}
+
+
+BTree *create_btree_from_file(const char *config_file, const char* data_file) {
   btree_config cfg;
 
   if (!read_btree_config(config_file, &cfg)) {
@@ -71,11 +97,22 @@ BTree *create_btree(const char *config_file) {
   }
 
   b->config = cfg;
+
+  if (data_file) {
+    sprintf(b->config.data_file, "%s", data_file);
+  }
+
   create_index_file(b);
   create_data_file(b);
 
   load_index_file(b);
   load_data_file(b);
+
+  if(!build_tree_from_data_file(b)) {
+    g_error(BTREE_ERROR, "Could not build B-Tree from data file");
+    clear_btree(b);
+    return NULL;
+  }
 
   b->root = load_btree_node(b, b->config.root_rrn);
 
@@ -157,8 +194,8 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
   }
 
   bn = alloc_btree_node(b->config.order);
-  if (!bn)
-    return NULL;
+
+  if (!bn) return NULL;
 
   bn->rrn = rrn;
 
@@ -176,7 +213,6 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
   }
 
   push_gq(&b->cache, &bn);
-
   return bn;
 }
 
@@ -414,7 +450,10 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     new_root->children[0] = b->root->rrn;
     new_root->children[1] = r_child->rrn;
     new_root->child_num = 2;
-
+    if(write_index_record(b, new_root) != BTREE_SUCCESS) {
+      g_dealloc(new_root);
+      g_crit_error(BTREE_ERROR, "Could not write new root to index file");
+    };
     b->root = new_root;
     b->config.root_rrn = new_root->rrn;
   }
@@ -529,6 +568,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
 
   return BTREE_PROMOTION;
 }
+
 btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
                         btree_node **r_child, bool *promoted) {
   if (!b || !promo_key || !p)
@@ -1045,12 +1085,9 @@ void load_file(BTree *b, const char *type) {
   const char* file_name = is_data ? b->config.data_file : b->config.index_file;
 
   if (io->fp != NULL) {
-    g_error(BTREE_ERROR, "Buffer already filled. Closing logical link");
-    if (fclose(io->fp) != 0) {
-      g_error(BTREE_ERROR, "Failed to close %s", file_name);
-      return;
-    }
-    io->fp = NULL;
+    // File already opened
+    g_info("File already opened: %s", file_name);
+    return;
   }
 
   sprintf(io->address, "%s", file_name);

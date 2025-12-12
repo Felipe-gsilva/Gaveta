@@ -63,7 +63,10 @@ typedef struct __BTree {
 
 void print_gq_btree_node(void *data);
 
-BTree *create_btree(const char *config_file);
+
+#define create_btree(btree_config_file)  create_btree_from_file(btree_config_file, NULL)
+
+BTree *create_btree_from_file(const char *config_file, const char* data_file);
 
 btree_status handle_underflow(BTree *b, btree_node *p);
 
