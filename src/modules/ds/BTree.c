@@ -3,9 +3,6 @@
 #include "../log/log.h"
 #include "../config/config.h"
 
-btree_node **g_allocated;
-u16 g_n = 0;
-
 static BTree *alloc_tree_buf(u32 order) {
   BTree *b = g_alloc(sizeof(BTree));
   if (!b) {
@@ -28,10 +25,12 @@ static BTree *alloc_tree_buf(u32 order) {
     return NULL;
   }
 
-  b->cache = NULL;
-  init_gq(&b->cache, sizeof(btree_node));
+  b->cache.gq = NULL;
+  init_gq(&b->cache.gq, sizeof(btree_node));
+  b->cache.cache_capacity = BTREE_CACHE_DEFAULT_CAPACITY;
+  b->cache.cache_size = 0;
 
-  if (!b->cache) {
+  if (!b->cache.gq) {
     g_dealloc(b->io_idx);
     g_dealloc(b->io_data);
     g_dealloc(b);
@@ -42,7 +41,7 @@ static BTree *alloc_tree_buf(u32 order) {
   b->io_idx->free_rrn = NULL;
   init_ll(&b->io_idx->free_rrn, sizeof(u16));
   if (!b->io_idx->free_rrn) {
-    g_dealloc(b->cache);
+    clear_gq(&b->cache.gq);
     g_dealloc(b->io_idx);
     g_dealloc(b->io_data);
     g_dealloc(b);
@@ -121,7 +120,7 @@ BTree *create_btree_from_file(const char *config_file, const char* data_file) {
     int k = 0;
     insert_ll(&b->io_idx->free_rrn, &k);
     insert_ll(&b->io_data->free_rrn, &k);
-    print_gq(&b->cache, btree_node);
+    print_gq(&b->cache.gq, btree_node);
     write_ll(&b->io_idx->free_rrn, b->config.idx_free_rrn_address, u32);
     write_ll(&b->io_data->free_rrn, b->config.data_free_rrn_address, u32);
     write_btree_config(config_file, &b->config);
@@ -147,13 +146,13 @@ bool compare_btree_nodes(void *v1, void *v2) {
 void clear_btree(BTree *b) {
   if (b) {
     clear_ll(&b->io_idx->free_rrn);
-    clear_gq(&b->cache);
+    clear_gq(&b->cache.gq);
     clear_io_buf(b->io_idx);
     clear_io_buf(b->io_data);
     if (b->root) {
       btree_node *q_btree_node = g_alloc(sizeof(btree_node));
       GenericQueue *node = g_alloc(sizeof(GenericQueue));
-      search_gq(&b->cache, &b->root, compare_btree_nodes, &node);
+      search_gq(&b->cache.gq, &b->root, compare_btree_nodes, &node);
       if (node->data) q_btree_node = *(btree_node **)node->data;
       if (!q_btree_node) {
         b->root = NULL;
@@ -168,6 +167,26 @@ void clear_btree(BTree *b) {
   g_debug(BTREE_STATUS, "B_TREE_BUFFER cleared");
 }
 
+static btree_node *alloc_btree_node(u32 order) {
+  btree_node *p = g_alloc(sizeof(btree_node));
+
+  if (!p) {
+    g_error(BTREE_ERROR, "Falha na alocação do nó da btree");
+    return NULL;
+  }
+
+  memset(p, 0, sizeof(btree_node));
+  p->leaf = true;
+  p->next_leaf = (u16)-1;
+  p->pinned = p->dirty =  0;
+
+  for (int i = 0; i < order; i++) {
+    p->children[i] = (u16)-1;
+  }
+
+  return p;
+}
+
 btree_node *load_btree_node(BTree *b, u16 rrn) {
   if (!b || !b->io_idx) {
     g_error(BTREE_ERROR, "Error: invalid parameters");
@@ -178,7 +197,7 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
   bn->rrn = rrn;
   GenericQueue *node = g_alloc(sizeof(GenericQueue));
 
-  if(!search_gq(&b->cache, &rrn, compare_btree_nodes, &node)) {
+  if(!search_gq(&b->cache.gq, &rrn, compare_btree_nodes, &node)) {
     g_dealloc(bn);
     g_dealloc(node);
     g_debug(BTREE_STATUS, "Btree_node not found in queue");
@@ -212,7 +231,17 @@ btree_node *load_btree_node(BTree *b, u16 rrn) {
     return NULL;
   }
 
-  push_gq(&b->cache, &bn);
+  push_gq(&b->cache.gq, &bn);
+  b->cache.cache_size++;
+  if (b->cache.cache_size >= b->cache.cache_capacity) {
+    btree_node *old_node;
+    pop_gq(&b->cache.gq, &old_node);
+    clear_btree_node(old_node);
+    b->cache.cache_size--;
+  }
+
+  bn->pinned = 0;
+  bn->dirty = 0;
   return bn;
 }
 
@@ -221,6 +250,72 @@ void b_update(BTree *b, GenericLinkedList *free_rrn,
  // TODO
 
 }
+
+static int search_in_btree_node(btree_node *p, key key, int *return_pos) {
+  if (!p) {
+    g_error(BTREE_ERROR, "Error: no btree_node");
+    return BTREE_ERROR_INVALID_BTREE_NODE;
+  }
+
+  for (int i = 0; i < p->keys_num; i++) {
+    if (((char*)p->keys[i].id)[0] == '\0') {
+      *return_pos = i;
+      return BTREE_NOT_FOUND_KEY;
+    }
+
+    if (strcmp(p->keys[i].id, key.id) == 0) {
+      puts("Curr key was found");
+      *return_pos = i;
+      return BTREE_FOUND_KEY;
+    }
+
+    if (strcmp(p->keys[i].id, key.id) > 0) {
+      *return_pos = i;
+      return BTREE_NOT_FOUND_KEY;
+    }
+  }
+
+  *return_pos = p->keys_num;
+  return BTREE_NOT_FOUND_KEY;
+}
+
+
+static u16 search_key(BTree *b, btree_node *p, key k, u16 *found_pos,
+               btree_node **return_btree_node) {
+  if (!p)
+    return (u16)-1;
+
+  int pos;
+  int result = search_in_btree_node(p, k, &pos);
+
+  g_debug(BTREE_STATUS, "btree_node key id: %s     key id: %s\n",
+          p->keys_num > 0 ? p->keys[0].id : "", k.id);
+
+  if (result == BTREE_FOUND_KEY) {
+    *found_pos = pos;
+    *return_btree_node = p;
+    return pos;
+  }
+
+  if (p->leaf) {
+    *return_btree_node = p;
+    *found_pos = pos;
+    return (u16)-1;
+  }
+
+  btree_node *next = load_btree_node(b, p->children[pos]);
+  if (!next)
+    return (u16)-1;
+
+  u16 ret = search_key(b, next, k, found_pos, return_btree_node);
+
+  if (next != b->root && !search_gq(&b->cache.gq, &next, compare_btree_nodes, NULL)) {
+    g_dealloc(next);
+  }
+
+  return ret;
+}
+
 
 btree_node *b_search(BTree *b, const char *query_key, u16 *return_pos) {
   if (!b || !b->root || !query_key)
@@ -294,82 +389,21 @@ void b_range_search(BTree *b, key_range *range) {
   }
 }
 
-int search_in_btree_node(btree_node *p, key key, int *return_pos) {
-  if (!p) {
-    g_error(BTREE_ERROR, "Error: no btree_node");
-    return BTREE_ERROR_INVALID_BTREE_NODE;
-  }
 
-  for (int i = 0; i < p->keys_num; i++) {
-    if (((char*)p->keys[i].id)[0] == '\0') {
-      *return_pos = i;
-      return BTREE_NOT_FOUND_KEY;
-    }
 
-    if (strcmp(p->keys[i].id, key.id) == 0) {
-      puts("Curr key was found");
-      *return_pos = i;
-      return BTREE_FOUND_KEY;
-    }
-
-    if (strcmp(p->keys[i].id, key.id) > 0) {
-      *return_pos = i;
-      return BTREE_NOT_FOUND_KEY;
-    }
-  }
-
-  *return_pos = p->keys_num;
-  return BTREE_NOT_FOUND_KEY;
-}
-
-u16 search_key(BTree *b, btree_node *p, key k, u16 *found_pos,
-               btree_node **return_btree_node) {
-  if (!p)
-    return (u16)-1;
-
-  int pos;
-  int result = search_in_btree_node(p, k, &pos);
-
-  g_debug(BTREE_STATUS, "btree_node key id: %s     key id: %s\n",
-          p->keys_num > 0 ? p->keys[0].id : "", k.id);
-
-  if (result == BTREE_FOUND_KEY) {
-    *found_pos = pos;
-    *return_btree_node = p;
-    return pos;
-  }
-
-  if (p->leaf) {
-    *return_btree_node = p;
-    *found_pos = pos;
-    return (u16)-1;
-  }
-
-  btree_node *next = load_btree_node(b, p->children[pos]);
-  if (!next)
-    return (u16)-1;
-
-  u16 ret = search_key(b, next, k, found_pos, return_btree_node);
-
-  if (next != b->root && !search_gq(&b->cache, &next, compare_btree_nodes, NULL)) {
-    g_dealloc(next);
-  }
-
-  return ret;
-}
-
-void populate_key(key *k, data_record *d, u16 rrn) {
+static void populate_key(key *k, data_record *d, u16 rrn) {
   if (!k || !d)
     return;
 
-  strncpy(k->id, d->k->id, 0); // TODO key size minus null terminator
+  // yet to understand how to handle the key from schema
+  strncpy(k->id, d->k->id, k->key_size); 
   k->data_register_rrn = rrn;
 
   g_debug(BTREE_STATUS, "Populated key with ID: %s and data RRN: %hu\n", k->id,
           k->data_register_rrn);
 }
 
-btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos) {
+static btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos) {
   if (!p)
     return BTREE_ERROR_INVALID_BTREE_NODE;
 
@@ -395,73 +429,42 @@ btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int
   return BTREE_INSERTED_IN_BTREE_NODE;
 }
 
-btree_status b_insert(BTree *b, void *d, u16 rrn) {
-  if (!b || !b->io_data || !d)
-    return BTREE_ERROR_INVALID_BTREE_NODE;
+btree_status write_index_record(BTree *b, btree_node *p) {
+  if (!b || !b->io_idx || !p)
+    return BTREE_ERROR_IO;
 
-  key new_key;
-  populate_key(&new_key, d, rrn);
+  int byte_offset = ((sizeof(btree_node) + b->config.schema_size) * p->rrn);
 
-  if (!b->root) {
-    b->root = alloc_btree_node(b->config.order);
-    if (!b->root)
-      return BTREE_ERROR_MEMORY;
-
-    b->root->rrn = get_free_rrn(b->io_idx->free_rrn);
-
-    if (b->root->rrn < 0) {
-      g_dealloc(b->root);
-      b->root = NULL;
-      return BTREE_ERROR_IO;
-    }
-
-    b->root->keys[0] = new_key;
-    b->root->keys_num = 1;
-    b->root->leaf = true;
-
-    return write_index_record(b, b->root);
+  if (fseek(b->io_idx->fp, byte_offset, SEEK_SET)) {
+    g_error(BTREE_ERROR, "Error: could not fseek");
+    return BTREE_ERROR_IO;
   }
 
-  key promo_key;
-  btree_node *r_child = NULL;
-  bool promoted = false;
-
-  btree_status status =
-      insert_key(b, b->root, new_key, &promo_key, &r_child, &promoted);
-
-  if (status < 0) {
-    return status;
+  size_t written = fwrite(p, sizeof(btree_node), 1, b->io_idx->fp);
+  if (written != 1) {
+    g_error(BTREE_ERROR, "Error: could not write btree_node");
+    return BTREE_ERROR_IO;
   }
 
-  if (promoted) {
-    btree_node *new_root = alloc_btree_node(b->config.order);
-    if (!new_root)
-      return BTREE_ERROR_MEMORY;
+  fflush(b->io_idx->fp);
 
-    new_root->rrn = get_free_rrn(b->io_idx->free_rrn);
-    if (new_root->rrn < 0) {
-      g_dealloc(new_root);
-      return BTREE_ERROR_IO;
+  g_info("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
+
+  if (!search_gq(&b->cache.gq, &p, compare_btree_nodes, NULL)) {
+    push_gq(&b->cache.gq, &p);
+    b->cache.cache_size++;
+    if (b->cache.cache_size >= b->cache.cache_capacity) {
+      btree_node *old_node;
+      pop_gq(&b->cache.gq, &old_node);
+      clear_btree_node(old_node);
+      b->cache.cache_size--;
     }
-
-    new_root->leaf = false;
-    new_root->keys[0] = promo_key;
-    new_root->keys_num = 1;
-    new_root->children[0] = b->root->rrn;
-    new_root->children[1] = r_child->rrn;
-    new_root->child_num = 2;
-    if(write_index_record(b, new_root) != BTREE_SUCCESS) {
-      g_dealloc(new_root);
-      g_crit_error(BTREE_ERROR, "Could not write new root to index file");
-    };
-    b->root = new_root;
-    b->config.root_rrn = new_root->rrn;
   }
 
   return BTREE_SUCCESS;
 }
 
-btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_key,
+static btree_status split(BTree *b, btree_node *p, btree_node **r_child, key *promo_key,
                      key *incoming_key, bool *promoted) {
   if (!b || !p || !r_child || !promo_key || !incoming_key)
     return BTREE_ERROR_INVALID_BTREE_NODE;
@@ -569,7 +572,7 @@ btree_status b_split(BTree *b, btree_node *p, btree_node **r_child, key *promo_k
   return BTREE_PROMOTION;
 }
 
-btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
+static btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
                         btree_node **r_child, bool *promoted) {
   if (!b || !promo_key || !p)
     return BTREE_ERROR_INVALID_BTREE_NODE;
@@ -588,7 +591,7 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     btree_node *temp_child = NULL;
     status = insert_key(b, child, k, &temp_key, &temp_child, promoted);
 
-    if (child != b->root && !search_gq(&b->cache, &child, compare_btree_nodes, NULL)) {
+    if (child != b->root && !search_gq(&b->cache.gq, &child, compare_btree_nodes, NULL)) {
       clear_btree_node(child);
     }
 
@@ -603,7 +606,7 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
         }
         return status;
       }
-      return b_split(b, p, r_child, promo_key, &k, promoted);
+      return split(b, p, r_child, promo_key, &k, promoted);
     }
     return status;
   }
@@ -617,7 +620,177 @@ btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     return status;
   }
 
-  return b_split(b, p, r_child, promo_key, &k, promoted);
+  return split(b, p, r_child, promo_key, &k, promoted);
+}
+
+btree_status b_insert(BTree *b, void *d, u16 rrn) {
+  if (!b || !b->io_data || !d)
+    return BTREE_ERROR_INVALID_BTREE_NODE;
+
+  key new_key;
+  populate_key(&new_key, d, rrn);
+
+  if (!b->root) {
+    b->root = alloc_btree_node(b->config.order);
+    if (!b->root)
+      return BTREE_ERROR_MEMORY;
+
+    b->root->rrn = get_free_rrn(b->io_idx->free_rrn);
+
+    if (b->root->rrn < 0) {
+      g_dealloc(b->root);
+      b->root = NULL;
+      return BTREE_ERROR_IO;
+    }
+
+    b->root->keys[0] = new_key;
+    b->root->keys_num = 1;
+    b->root->leaf = true;
+
+    return write_index_record(b, b->root);
+  }
+
+  key promo_key;
+  btree_node *r_child = NULL;
+  bool promoted = false;
+
+  btree_status status =
+      insert_key(b, b->root, new_key, &promo_key, &r_child, &promoted);
+
+  if (status < 0) {
+    return status;
+  }
+
+  if (promoted) {
+    btree_node *new_root = alloc_btree_node(b->config.order);
+    if (!new_root)
+      return BTREE_ERROR_MEMORY;
+
+    new_root->rrn = get_free_rrn(b->io_idx->free_rrn);
+    if (new_root->rrn < 0) {
+      g_dealloc(new_root);
+      return BTREE_ERROR_IO;
+    }
+
+    new_root->leaf = false;
+    new_root->keys[0] = promo_key;
+    new_root->keys_num = 1;
+    new_root->children[0] = b->root->rrn;
+    new_root->children[1] = r_child->rrn;
+    new_root->child_num = 2;
+    if(write_index_record(b, new_root) != BTREE_SUCCESS) {
+      g_dealloc(new_root);
+      g_crit_error(BTREE_ERROR, "Could not write new root to index file");
+    };
+    b->root = new_root;
+    b->config.root_rrn = new_root->rrn;
+  }
+
+  return BTREE_SUCCESS;
+}
+
+static btree_node *find_parent(BTree *b, btree_node *current, btree_node *target) {
+  if (!b || !current || !target)
+    return NULL;
+
+  if (target == b->root)
+    return NULL;
+
+  for (int i = 0; i < current->child_num; i++) {
+    if (current->children[i] == target->rrn) {
+      return current;
+    }
+  }
+
+  if (!current->leaf) {
+    for (int i = 0; i < current->child_num; i++) {
+      btree_node *child = load_btree_node(b, current->children[i]);
+      if (!child)
+        continue;
+
+      btree_node *result = find_parent(b, child, target);
+
+      if (child != b->root && !search_gq(&b->cache.gq, &child, compare_btree_nodes, NULL)) {
+        clear_btree_node(child);
+      }
+
+      if (result)
+        return result;
+    }
+  }
+
+  return NULL;
+}
+
+static btree_node *get_sibling(BTree *b, btree_node *p, bool left) {
+  if (!b || !p || !b->root)
+    return NULL;
+
+  btree_node *parent = find_parent(b, b->root, p);
+  if (!parent)
+    return NULL;
+
+  int pos;
+  for (pos = 0; pos <= parent->child_num; pos++) {
+    if (parent->children[pos] == p->rrn)
+      break;
+  }
+
+  if (left && pos > 0) {
+    return load_btree_node(b, parent->children[pos - 1]);
+  } else if (!left && pos < parent->child_num - 1) {
+    return load_btree_node(b, parent->children[pos + 1]);
+  }
+
+  return NULL;
+}
+
+static btree_status redistribute(BTree *b, btree_node *donor, btree_node *receiver,
+                          bool from_left) {
+  if (!b || !donor || !receiver)
+    return BTREE_ERROR_INVALID_BTREE_NODE;
+
+  if (from_left) {
+    for (int i = receiver->keys_num; i > 0; i--)
+      receiver->keys[i] = receiver->keys[i - 1];
+    receiver->keys[0] = donor->keys[donor->keys_num - 1];
+    donor->keys_num--;
+    receiver->keys_num++;
+  } else {
+    receiver->keys[receiver->keys_num] = donor->keys[0];
+    receiver->keys_num++;
+
+    for (int i = 0; i < donor->keys_num - 1; i++) {
+      donor->keys[i] = donor->keys[i + 1];
+    }
+    donor->keys_num--;
+  }
+
+  btree_status status = write_index_record(b, donor);
+  if (status < 0)
+    return status;
+
+  return write_index_record(b, receiver);
+}
+
+static btree_status merge(BTree *b, btree_node *left, btree_node *right) {
+  if (!b || !left || !right)
+    return BTREE_ERROR_INVALID_BTREE_NODE;
+
+  for (int i = 0; i < right->keys_num; i++) {
+    left->keys[left->keys_num + i] = right->keys[i];
+  }
+  left->keys_num += right->keys_num;
+
+  left->next_leaf = right->next_leaf;
+
+  btree_status status = write_index_record(b, left);
+  if (status < 0)
+    return status;
+
+  insert_ll(&b->io_idx->free_rrn, &right->rrn);
+
+  return BTREE_SUCCESS;
 }
 
 btree_status b_remove(BTree *b, char *key_id) {
@@ -689,76 +862,7 @@ btree_status b_remove(BTree *b, char *key_id) {
   return BTREE_SUCCESS;
 }
 
-btree_status redistribute(BTree *b, btree_node *donor, btree_node *receiver,
-                          bool from_left) {
-  if (!b || !donor || !receiver)
-    return BTREE_ERROR_INVALID_BTREE_NODE;
 
-  if (from_left) {
-    for (int i = receiver->keys_num; i > 0; i--)
-      receiver->keys[i] = receiver->keys[i - 1];
-    receiver->keys[0] = donor->keys[donor->keys_num - 1];
-    donor->keys_num--;
-    receiver->keys_num++;
-  } else {
-    receiver->keys[receiver->keys_num] = donor->keys[0];
-    receiver->keys_num++;
-
-    for (int i = 0; i < donor->keys_num - 1; i++) {
-      donor->keys[i] = donor->keys[i + 1];
-    }
-    donor->keys_num--;
-  }
-
-  btree_status status = write_index_record(b, donor);
-  if (status < 0)
-    return status;
-
-  return write_index_record(b, receiver);
-}
-
-btree_status merge(BTree *b, btree_node *left, btree_node *right) {
-  if (!b || !left || !right)
-    return BTREE_ERROR_INVALID_BTREE_NODE;
-
-  for (int i = 0; i < right->keys_num; i++) {
-    left->keys[left->keys_num + i] = right->keys[i];
-  }
-  left->keys_num += right->keys_num;
-
-  left->next_leaf = right->next_leaf;
-
-  btree_status status = write_index_record(b, left);
-  if (status < 0)
-    return status;
-
-  insert_ll(&b->io_idx->free_rrn, &right->rrn);
-
-  return BTREE_SUCCESS;
-}
-
-btree_node *get_sibling(BTree *b, btree_node *p, bool left) {
-  if (!b || !p || !b->root)
-    return NULL;
-
-  btree_node *parent = find_parent(b, b->root, p);
-  if (!parent)
-    return NULL;
-
-  int pos;
-  for (pos = 0; pos <= parent->child_num; pos++) {
-    if (parent->children[pos] == p->rrn)
-      break;
-  }
-
-  if (left && pos > 0) {
-    return load_btree_node(b, parent->children[pos - 1]);
-  } else if (!left && pos < parent->child_num - 1) {
-    return load_btree_node(b, parent->children[pos + 1]);
-  }
-
-  return NULL;
-}
 
 void print_btree_node(btree_node *p) {
   if (!p) {
@@ -788,33 +892,6 @@ void print_btree_node(btree_node *p) {
   }
 }
 
-btree_status write_index_record(BTree *b, btree_node *p) {
-  if (!b || !b->io_idx || !p)
-    return BTREE_ERROR_IO;
-
-  int byte_offset = ((sizeof(btree_node) + b->config.schema_size) * p->rrn);
-
-  if (fseek(b->io_idx->fp, byte_offset, SEEK_SET)) {
-    g_error(BTREE_ERROR, "Error: could not fseek");
-    return BTREE_ERROR_IO;
-  }
-
-  size_t written = fwrite(p, sizeof(btree_node), 1, b->io_idx->fp);
-  if (written != 1) {
-    g_error(BTREE_ERROR, "Error: could not write btree_node");
-    return BTREE_ERROR_IO;
-  }
-
-  fflush(b->io_idx->fp);
-
-  g_info("Successfully wrote btree_node %hu at offset %d\n", p->rrn, byte_offset);
-
-  if (!search_gq(&b->cache, &p, compare_btree_nodes, NULL)) {
-    push_gq(&b->cache, &p);
-  }
-
-  return BTREE_SUCCESS;
-}
 
 void create_index_file(BTree *b) {
   io_buf *io = b->io_idx;
@@ -847,43 +924,8 @@ void create_index_file(BTree *b) {
   }
 
   char list_name[MAX_ADDRESS];
-  sprintf(list_name, "%s_free_rrn_list.bin", file_name);
+  sprintf(list_name, "%.4077s_free_rrn_list.bin", file_name);
   g_info("Index file created successfully");
-}
-
-btree_node *alloc_btree_node(u32 order) {
-  btree_node *p = g_alloc(sizeof(btree_node));
-
-  if (!p) {
-    g_error(BTREE_ERROR, "Falha na alocação do nó da btree");
-    return NULL;
-  }
-
-  memset(p, 0, sizeof(btree_node));
-  p->leaf = true;
-  p->next_leaf = (u16)-1;
-
-  for (int i = 0; i < order; i++) {
-    p->children[i] = (u16)-1;
-  }
-
-  return p;
-}
-
-bool clear_all_btree_nodes(void) {
-  if (!g_allocated) return false;
-
-  for (int i = 0; i < g_n; i++) {
-    if (g_allocated[i]) {
-      g_dealloc(g_allocated[i]);
-      g_allocated[i] = NULL;
-    }
-  }
-
-  g_dealloc(g_allocated);
-  g_allocated = NULL;
-  g_n = 0;
-  return true;
 }
 
 bool clear_btree_node(btree_node *btree_node) {
@@ -895,57 +937,6 @@ bool clear_btree_node(btree_node *btree_node) {
   return false;
 }
 
-void track_btree_node(btree_node *p) {
-  if (!p)
-    return;
-
-  if (!g_allocated) {
-    g_allocated = g_alloc(sizeof(btree_node *));
-    if (!g_allocated)
-      return;
-    g_n = 0;
-  } else {
-    btree_node **tmp = realloc(g_allocated, sizeof(btree_node *) * (g_n + 1));
-    if (!tmp)
-      return;
-    g_allocated = tmp;
-  }
-
-  g_allocated[g_n++] = p;
-}
-
-btree_node *find_parent(BTree *b, btree_node *current, btree_node *target) {
-  if (!b || !current || !target)
-    return NULL;
-
-  if (target == b->root)
-    return NULL;
-
-  for (int i = 0; i < current->child_num; i++) {
-    if (current->children[i] == target->rrn) {
-      return current;
-    }
-  }
-
-  if (!current->leaf) {
-    for (int i = 0; i < current->child_num; i++) {
-      btree_node *child = load_btree_node(b, current->children[i]);
-      if (!child)
-        continue;
-
-      btree_node *result = find_parent(b, child, target);
-
-      if (child != b->root && !search_gq(&b->cache, &child, compare_btree_nodes, NULL)) {
-        clear_btree_node(child);
-      }
-
-      if (result)
-        return result;
-    }
-  }
-
-  return NULL;
-}
 
 
 void sort_list(u16 A[], int n) {
@@ -1125,7 +1116,7 @@ void create_data_file(BTree *b) {
 
   int prepend = 0;
   char list_name[MAX_ADDRESS];
-  sprintf(list_name, "%s.dot", b->config.data_file);
+  sprintf(list_name, "%.4091s.dot", b->config.data_file);
 
   io->fp = fopen(io->address, "r+b");
   if (!io->fp) {

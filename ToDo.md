@@ -8,6 +8,9 @@
   - [ ] Refactor to use Generic Data Structures
   - [ ] Export API to use BTree+
   - [ ] Upgrade caching layer (curr using FIFO)
+  - [ ] Implement lazy write back
+  - [ ] Pinning pages for thread safety
+  - [ ] Better serialization format
 - [ ] Query language parser
 - [ ] Transactions
 - [ ] Schema creation
