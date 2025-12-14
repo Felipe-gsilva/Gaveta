@@ -5,9 +5,9 @@
   - [ ] GenericHashTable (with user given hash function)
   - [ ] GenericDynamicArray (rewrite from previous project)
 - [ ] BTree+ Implementation/Refactor from the previous project
-  - [ ] Refactor to use Generic Data Structures
+  - [X] Refactor to use Generic Data Structures
   - [ ] Export API to use BTree+
-  - [ ] Upgrade caching layer (curr using FIFO)
+  - [ ] Upgrade caching layer
   - [ ] Implement lazy write back
   - [ ] Pinning pages for thread safety
   - [ ] Better serialization format
