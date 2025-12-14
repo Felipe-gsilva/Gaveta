@@ -8,12 +8,12 @@
   - [X] Refactor to use Generic Data Structures
   - [ ] Export API to use BTree+
   - [ ] Upgrade caching layer
-  - [ ] Implement lazy write back
   - [ ] Pinning pages for thread safety
   - [ ] Better serialization format
 - [ ] Query language parser
-- [ ] Transactions
 - [ ] Schema creation
+- [ ] Transactions
+  - [ ] Implement lazy write back
 - [ ] Study how to distribute it later on
 - [ ] other things yet to come...
 - [ ] Write tests for everything
