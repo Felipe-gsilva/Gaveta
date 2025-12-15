@@ -10,10 +10,18 @@ bool init_ht(HashTable **ht, u32 data_size, hash_fn h) {
   (*ht)->data_size = data_size;
   (*ht)->h = h;
 
-  (*ht)->buckets = darray_create(sizeof(DynamicArray), INITIAL_HT_SIZE);
+  (*ht)->buckets = darray_create(sizeof(GenericLinkedList), INITIAL_HT_SIZE);
   if (!(*ht)->buckets) {
     g_error(HASH_TABLE_ERROR, "Failed to create hash table");
     return false;
+  }
+  for (int i = 0; i < INITIAL_HT_SIZE; i ++) {
+    GenericLinkedList *l = g_alloc(sizeof(GenericLinkedList));
+    darray_get((*ht)->buckets, i, l);
+    if (!init_ll(&l, sizeof(data_size))) {
+      g_error(HASH_TABLE_ERROR, "Could not initialize linkedlist buckets");
+      return false;
+    }
   }
 
   return true;
@@ -29,7 +37,7 @@ bool put_ht(HashTable **ht, const char *key, const void *data) {
     return false;
   }
 
-  u32 i = (*ht)->h(key, (*ht)->data_size);
+  u32 i = (*ht)->h(key);
   printf("Inserting key: %s at index: %u\n", key, i);
 
   if (i >= darray_size((*ht)->buckets)) {
@@ -45,7 +53,7 @@ void *lookup_ht(HashTable **ht, const void *k, compare_fallback_fn f) {
     return NULL;
   }
 
-  u32 i = (*ht)->h(k, (*ht)->data_size);
+  u32 i = (*ht)->h(k);
   if (i >= darray_size((*ht)->buckets)) {
     g_error(HASH_TABLE_ERROR, "Hash index out of bounds");
     return NULL;
@@ -65,6 +73,15 @@ void *lookup_ht(HashTable **ht, const void *k, compare_fallback_fn f) {
   return NULL;
 }
 
-hash_fn modulo(const char *k, u32 data_size) {
-  return k;
+u32 polynomial_rolling_hash_fn(const char* key) {
+  u32 h_value = 0;
+  long long p_pow = 1;
+  const int p = 31;
+  const int m = INITIAL_HT_SIZE * 10;
+  for (int i =0; i< strlen(key); i++) {
+    h_value = (h_value + (key[i] - 'a' + 1) * p_pow) % m;
+    p_pow = (p_pow * p) % m;
+  }
+
+  return h_value;
 }
