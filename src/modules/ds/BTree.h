@@ -58,12 +58,22 @@ typedef struct __btree_cache {
   u32 cache_capacity;
 } btree_cache;
 
+typedef struct __write_req {
+  u16 rrn;
+  void *data;
+} write_req;
+
+typedef struct __io_wrapper {
+  io_buf *index;
+  io_buf *data;
+  GenericQueue *write_reqs;
+} io_wrapper;
+
 typedef struct __BTree {
   btree_node *root;
-  io_buf *io_idx;
-  io_buf *io_data;
   btree_config config;
   btree_cache cache;
+  io_wrapper io;
 } BTree;
 
 void print_gq_btree_node(void *data);

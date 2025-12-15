@@ -1,6 +1,6 @@
 #include "HashTable.h"
 
-bool init_ht(HashTable **ht, u32 data_size, hash_fn (h)(key)) {
+bool init_ht(HashTable **ht, u32 data_size, hash_fn h) {
   if (*ht) {
     g_error(HASH_TABLE_ERROR, "Hash table already initialized");
     return false;
@@ -10,24 +10,17 @@ bool init_ht(HashTable **ht, u32 data_size, hash_fn (h)(key)) {
   (*ht)->data_size = data_size;
   (*ht)->h = h;
 
-  (*ht)->val = (DynamicArray**)darray_create(sizeof(DynamicArray), INITIAL_HT_SIZE);
-  if (!(*ht)->val) {
+  (*ht)->buckets = darray_create(sizeof(DynamicArray), INITIAL_HT_SIZE);
+  if (!(*ht)->buckets) {
     g_error(HASH_TABLE_ERROR, "Failed to create hash table");
     return false;
-  }
-  for (int i = 0; i < INITIAL_HT_SIZE; i++) {
-    (*ht)->val[i] = darray_create(data_size, 1);
-    if (!(*ht)->val[i]) {
-      g_error(HASH_TABLE_ERROR, "Failed to create hash table bucket");
-      return false;
-    }
   }
 
   return true;
 }
 
-bool insert_ht(HashTable **ht, void *data) {
-  if (!ht || !*ht || !(*ht)->val) {
+bool put_ht(HashTable **ht, const char *key, const void *data) {
+  if (!ht || !*ht || !(*ht)->buckets) {
     return false;
   }
 
@@ -36,23 +29,42 @@ bool insert_ht(HashTable **ht, void *data) {
     return false;
   }
 
-  int i = *(int*)(*ht)->h(data);
-  if (i < 0) {
-    g_error(HASH_TABLE_ERROR, "Hash function returned negative index");
+  u32 i = (*ht)->h(key, (*ht)->data_size);
+  printf("Inserting key: %s at index: %u\n", key, i);
+
+  if (i >= darray_size((*ht)->buckets)) {
+    g_error(HASH_TABLE_ERROR, "Hash index out of bounds");
     return false;
   }
-
-  if (i >= darray_size((DynamicArray*)(*ht)->val)) {
-    darray_push((DynamicArray*)(*ht)->val, NULL);
-  }
-
-  if (!darray_push((*ht)->val[i], data)) {
-    g_error(HASH_TABLE_ERROR, "Failed to insert data into hash table");
-    return false;
-  }
-
+  darray_set((*ht)->buckets, i, data);
   return true;
 }
-bool lookup_ht(HashTable **ht, key k) {
 
+void *lookup_ht(HashTable **ht, const void *k, compare_fallback_fn f) {
+  if (!ht || !*ht || !(*ht)->buckets) {
+    return NULL;
+  }
+
+  u32 i = (*ht)->h(k, (*ht)->data_size);
+  if (i >= darray_size((*ht)->buckets)) {
+    g_error(HASH_TABLE_ERROR, "Hash index out of bounds");
+    return NULL;
+  }
+
+  void *data = g_alloc(sizeof((*ht)->data_size));
+  darray_get((*ht)->buckets, i, data);
+  if (!data) {
+    g_error(HASH_TABLE_ERROR, "Key not found in hash table");
+    return NULL;
+  }
+
+  if (f(data, k)) {
+    return data;
+  }
+
+  return NULL;
+}
+
+hash_fn modulo(const char *k, u32 data_size) {
+  return k;
 }

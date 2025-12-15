@@ -3,6 +3,12 @@
 build
 target
 *.o
-assets/**/*.idx
-assets/**/*.hlp
-assets/**/*.dat
+*.so
+*.dll
+assets/public/*
+# I do not use any of the following, but they are commonly ignored
+.vscode 
+.DS_Store
+.idea
+node_modules
+dist
