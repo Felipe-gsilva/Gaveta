@@ -5,15 +5,15 @@
   - [ ] GenericHashTable (with user given hash function)
   - [ ] GenericDynamicArray (rewrite from previous project)
 - [ ] BTree+ Implementation/Refactor from the previous project
-  - [ ] Refactor to use Generic Data Structures
+  - [X] Refactor to use Generic Data Structures
   - [ ] Export API to use BTree+
-  - [ ] Upgrade caching layer (curr using FIFO)
-  - [ ] Implement lazy write back
+  - [ ] Upgrade caching layer
   - [ ] Pinning pages for thread safety
   - [ ] Better serialization format
 - [ ] Query language parser
-- [ ] Transactions
 - [ ] Schema creation
+- [ ] Transactions
+  - [ ] Implement lazy write back
 - [ ] Study how to distribute it later on
 - [ ] other things yet to come...
 - [ ] Write tests for everything
