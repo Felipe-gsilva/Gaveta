@@ -81,13 +81,13 @@ bool clear_ll(GenericLinkedList **ll) {
   return true;
 }
 
-bool search_ll(GenericLinkedList **ll, void *data, bool (*cmp_fn)(void*, void*), GenericLinkedList **found_node) {
+bool search_ll(GenericLinkedList **ll, void *data, cmp_fn f, GenericLinkedList **found_node) {
   if (!*ll || is_ll_empty(ll)) {
     g_error(LIST_ERROR, "Trying to search in a empty LinkedList");
     return false;
   }
 
-  if (!cmp_fn) {
+  if (!f) {
     g_error(LIST_ERROR, "No comparison function provided");
     return false;
   }
@@ -100,7 +100,7 @@ bool search_ll(GenericLinkedList **ll, void *data, bool (*cmp_fn)(void*, void*),
   }
 
   while (aux != NULL) {
-    if (cmp_fn(aux->data, data)) {
+    if (f(aux->data, data)) {
       if (found_node) *found_node = aux;
       g_debug(LIST_STATUS, "Found LinkedList entry with same data");
       return true;

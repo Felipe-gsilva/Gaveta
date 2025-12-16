@@ -9,6 +9,7 @@
 typedef void (*print_callback_fn)(void *data);
 typedef void (*write_fallback_fn)(FILE *fp, void *data);
 typedef void (*read_fallback_fn)(FILE *fp, void *data);
+typedef bool (*cmp_fn)(void*, void*);
 
 bool compare_ints(void *a, void *b);
 bool compare_floats(void *a, void *b);
