@@ -18,7 +18,7 @@ bool test_generic_linkedlist() {
 
   GenericLinkedList *found_node = NULL;
   int search_val = 20;
-  bool found = search_ll(&ll, &search_val, compare_ints, &found_node);
+  bool found = search_ll(&ll, &search_val, compare_ints, found_node->data);
   assert(found == true);
   assert(*(int*)found_node->data == search_val);
 

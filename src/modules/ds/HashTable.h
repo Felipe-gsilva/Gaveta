@@ -1,35 +1,45 @@
 #ifndef __HASH_TABLE_H
 #define __HASH_TABLE_H
 
+/* This is a String Key / Generic Data HashTable
+ * You can define whatever node size at the init function, them proceed to have 
+ * any size within for your keys (which can be defined with ... TODO)
+ */
+
 #include "../../defines.h"
 #include "GenericLinkedList.h"
 #include "GenericDynamicArray.h"
 #include "../log/log.h"
 
 #define INITIAL_HT_SIZE 16
+#define DEFAULT_KEY_SIZE 32
+#define DEFAULT_DATA_SIZE 128
 
 typedef u32 (*hash_fn)(const char *);
 
-typedef struct __ht_bucket {
-  void *data, *key;
-  u32 key_size, data_size;
+typedef struct __bucket {
+  char *key;
+  void *data;
+} bucket;
+
+typedef struct __bucket_head {
   GenericLinkedList *head;
-} ht_bucket;
+} bucket_head;
 
 typedef struct __HashTable {
-  u32 data_size, key_size;
-  DynamicArray *buckets;
+  u32 data_size;
+  u16 max_key_size;
+  DynamicArray *bucket_heads;
   hash_fn h;
 } HashTable;
 
 #define Map HashTable
-#define insert_ht put_ht
-#define delele_ht remove_ht
-#define get_ht lookup_ht
+#define HashMap HashTable
 
-#define init_default_ht(ht, data_size) init_ht(ht, data_size, polynomial_rolling_hash_fn)
-bool init_ht(HashTable **ht, hash_fn h); // TODO think about
-bool put_ht(HashTable **ht, const char *key, void *data);
+#define init_hash_table(ht, data_size) init_ht(ht, data_size, polynomial_rolling_hash_fn)
+
+bool init_ht(HashTable **ht, u32 data_size, u16 max_key_size, hash_fn h);
+bool put_ht(HashTable **ht, char *key, void *data);
 void *lookup_ht(HashTable **ht, void *k, cmp_fn f);
 bool remove_ht(HashTable **ht, void *k, cmp_fn f);
 bool clear_ht(HashTable **ht);

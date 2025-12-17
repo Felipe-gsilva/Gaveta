@@ -81,7 +81,7 @@ bool clear_ll(GenericLinkedList **ll) {
   return true;
 }
 
-bool search_ll(GenericLinkedList **ll, void *data, cmp_fn f, GenericLinkedList **found_node) {
+bool search_ll(GenericLinkedList **ll, void *data, cmp_fn f, void **found_data) {
   if (!*ll || is_ll_empty(ll)) {
     g_error(LIST_ERROR, "Trying to search in a empty LinkedList");
     return false;
@@ -101,7 +101,7 @@ bool search_ll(GenericLinkedList **ll, void *data, cmp_fn f, GenericLinkedList *
 
   while (aux != NULL) {
     if (f(aux->data, data)) {
-      if (found_node) *found_node = aux;
+      if (found_data) *found_data = aux->data;
       g_debug(LIST_STATUS, "Found LinkedList entry with same data");
       return true;
     }

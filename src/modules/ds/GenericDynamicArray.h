@@ -17,6 +17,7 @@ void darray_destroy(DynamicArray *array);
 int darray_push(DynamicArray *array, const void *element);
 int darray_pop(DynamicArray *array, void *out_element);
 int darray_get(const DynamicArray *array, size_t index, void *out_element);
+int darray_get_pointer (const DynamicArray *array, size_t index, void **out_element);
 int darray_set(DynamicArray *array, size_t index, const void *element);
 u32 darray_size(const DynamicArray *array);
 u32 darray_capacity(const DynamicArray *array);

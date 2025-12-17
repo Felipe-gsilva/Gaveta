@@ -84,6 +84,18 @@ int darray_get(const DynamicArray *array, size_t index, void *out_element) {
   return 0;
 }
 
+int darray_get_pointer(const DynamicArray *array, size_t index,
+                       void **out_element) {
+  assert(array != NULL);
+
+  if (index >= array->size)
+    return -1;
+
+  *out_element = (char *)array->data + (index * array->element_size);
+
+  return 0;
+}
+
 int darray_set(DynamicArray *array, size_t index, const void *element) {
   assert(array != NULL && element != NULL);
 
@@ -106,14 +118,14 @@ u32 darray_capacity(const DynamicArray *array) {
   return array->capacity;
 }
 
-
 int darray_get_last(const DynamicArray *array, void *out_element) {
   assert(array != NULL && out_element != NULL);
 
   if (array->size == 0)
     return -1;
 
-  const void *src = (const char *)array->data + ((array->size - 1) * array->element_size);
+  const void *src =
+      (const char *)array->data + ((array->size - 1) * array->element_size);
   memcpy(out_element, src, array->element_size);
 
   return 0;
