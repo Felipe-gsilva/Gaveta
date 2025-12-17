@@ -3,13 +3,17 @@
 
 #include "../ds/HashTable.h"
 
-typedef enum __schema_types {
-    INT = 0,
-    STR = 1,
-} schema_types;
+typedef enum {
+    G_INT = 0,
+    G_UINT = 1,
+    G_FLOAT = 2,
+    G_DOUBLE = 3,
+    G_CHAR = 7,
+    G_STR = 8,
+} SchemaTypes;
 
 typedef struct {
-    schema_types type_id;
+    SchemaTypes type_id;
     bool is_nullable;
     int max_length;
 } ColumnMetadata;

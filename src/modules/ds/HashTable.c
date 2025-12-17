@@ -76,7 +76,7 @@ void *lookup_ht(HashTable **ht, void *k, cmp_fn f) {
   u32 hash = (*ht)->h(k);
   u32 i = hash % darray_size((*ht)->bucket_heads);
 
-  GenericLinkedList *ll;
+  GenericLinkedList *ll = NULL;
   darray_get_pointer((*ht)->bucket_heads, i, (void**)&ll);
 
   if (!ll) return NULL;
