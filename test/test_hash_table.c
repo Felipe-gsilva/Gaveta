@@ -11,7 +11,7 @@ bool test_hash_tables() {
   init_mem(MB * 2);
 
   Map *ht = NULL; 
-  if (!init_ht(&ht, sizeof(int), 32, polynomial_rolling_hash_fn)) {
+  if (!init_hash_table(&ht, sizeof(int))) {
       printf("Failed to init HT\n");
       return false;
   }
@@ -20,18 +20,10 @@ bool test_hash_tables() {
   int val2 = 200;
   char *key1 = "username";
   char *key2 = "email";
-
-  printf("Putting 'username' -> 100\n");
   put_ht(&ht, key1, &val1);
-  
-  printf("Putting 'email' -> 200\n");
   put_ht(&ht, key2, &val2);
 
-  printf("Looking up 'username'...\n");
-  // We construct a dummy bucket for the search key if your compare fn expects it
-  bucket search_key = {.key = "username"};
-  
-  int *result = lookup_ht(&ht, &search_key, cmp_str_keys);
+  int *result = lookup_ht(&ht, key1, cmp_str_keys);
   
   if (!result) {
       printf("TEST FAIL: Key 'username' not found.\n");
@@ -45,8 +37,22 @@ bool test_hash_tables() {
       return false;
   }
 
+  
+  result = lookup_ht(&ht, key2, cmp_str_keys);
+
+  if (!result) {
+      printf("TEST FAIL: Key 'email' not found.\n");
+      return false;
+  }
+
+  if (*result != 200) {
+      printf("TEST FAIL: Expected 200, got %d\n", *result);
+      return false;
+  }
+
   printf("--- Hash Table Test Passed ---\n");
   
+  clear_ht(&ht);
   clear_mem(); 
   return true;
 }

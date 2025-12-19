@@ -1,4 +1,5 @@
 #include "GenericDynamicArray.h"
+#include "../../modules/memory/mem.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,16 +21,16 @@ DynamicArray *darray_create(u32 element_size, u32 initial_capacity) {
   if (element_size == 0) {
     return NULL;
   }
-  DynamicArray *array = (DynamicArray *)malloc(sizeof(DynamicArray));
+  DynamicArray *array = (DynamicArray *)g_alloc(sizeof(DynamicArray));
   if (array == NULL) {
     return NULL;
   }
   array->size = 0;
   array->element_size = element_size;
   array->capacity = (initial_capacity > 0) ? initial_capacity : 8;
-  array->data = malloc(array->capacity * array->element_size);
+  array->data = g_alloc(array->capacity * array->element_size);
   if (array->data == NULL) {
-    free(array);
+    g_dealloc(array);
     return NULL;
   }
 
@@ -38,8 +39,8 @@ DynamicArray *darray_create(u32 element_size, u32 initial_capacity) {
 
 void darray_destroy(DynamicArray *array) {
   if (array != NULL) {
-    free(array->data);
-    free(array);
+    g_dealloc(array->data);
+    g_dealloc(array);
   }
 }
 
@@ -84,16 +85,13 @@ int darray_get(const DynamicArray *array, size_t index, void *out_element) {
   return 0;
 }
 
-int darray_get_pointer(const DynamicArray *array, size_t index,
-                       void **out_element) {
+void* darray_get_pointer(const DynamicArray *array, size_t index) {
   assert(array != NULL);
 
   if (index >= array->size)
-    return -1;
+    return NULL;
 
-  *out_element = (char *)array->data + (index * array->element_size);
-
-  return 0;
+  return (void*)((char *)array->data + (index * array->element_size));
 }
 
 int darray_set(DynamicArray *array, size_t index, const void *element) {

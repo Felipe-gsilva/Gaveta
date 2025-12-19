@@ -15,7 +15,7 @@
 #define DEFAULT_KEY_SIZE 32
 #define DEFAULT_DATA_SIZE 128
 
-typedef u32 (*hash_fn)(const char *);
+typedef u32 (*hash_fn)(char *);
 
 typedef struct __bucket {
   char *key;
@@ -36,7 +36,7 @@ typedef struct __HashTable {
 #define Map HashTable
 #define HashMap HashTable
 
-#define init_hash_table(ht, data_size) init_ht(ht, data_size, polynomial_rolling_hash_fn)
+#define init_hash_table(ht, data_size) init_ht(ht, data_size, DEFAULT_KEY_SIZE, murmur3_32)
 
 bool init_ht(HashTable **ht, u32 data_size, u16 max_key_size, hash_fn h);
 bool put_ht(HashTable **ht, char *key, void *data);
@@ -46,6 +46,8 @@ bool clear_ht(HashTable **ht);
 
 // available default hash functions
 // any other hash functions must return a non-negative integer
-u32 polynomial_rolling_hash_fn(const char *key);
+u32 polynomial_rolling_hash_fn(char *key);
+u32 djb2(char *key);
+u32 murmur3_32(char *key);
 
 #endif

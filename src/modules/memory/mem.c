@@ -145,7 +145,6 @@ void *g_allocate(memory *mem_pool, u32 bytes) {
   }
 
   sem_post(&(*target_mem_pool)->memory_s);
-  g_debug(MEM_STATUS, "Allocated %d pages for %d bytes in address %p", num_pages, bytes, ptr);
   return (void *)(char *)ptr + sizeof(alloc_header);
 }
 
