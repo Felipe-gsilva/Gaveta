@@ -61,6 +61,13 @@ bool put_ht(HashTable **ht, char *key, void *data) {
     return false;
   }
 
+  int size;
+  if ((size = strlen(key) - (*ht)->max_key_size) > 0) {
+    g_warn(HASH_TABLE_ERROR, "Truncating %d bytes from key", size);
+    snprintf(key, (*ht)->max_key_size + 1, "%s", key);
+  }
+
+  // hash index
   u32 i = (*ht)->h(key) % darray_size((*ht)->bucket_heads);
 
   if (i >= darray_size((*ht)->bucket_heads)) {

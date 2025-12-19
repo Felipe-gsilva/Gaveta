@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int _darray_resize(DynamicArray *array) {
+static inline int _darray_resize(DynamicArray *array) {
   assert(array != NULL);
   size_t new_capacity = (array->capacity == 0) ? 8 : array->capacity * 2;
   void *new_data = realloc(array->data, new_capacity * array->element_size);
