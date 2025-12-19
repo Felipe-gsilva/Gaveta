@@ -82,8 +82,8 @@ bool test_heterogeneous_ds() {
   btree_node *result = (btree_node*)lookup_ht(&ht, key1, cmp_str_keys);
   
   if (!result) {
-      printf("TEST FAIL: Key 'username' not found.\n");
-      return false;
+    printf("TEST FAIL: Key 'username' not found.\n");
+    return false;
   }
   
   printf("Found value: %d\n", result->rrn);

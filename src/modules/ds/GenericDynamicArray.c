@@ -85,13 +85,13 @@ int darray_get(const DynamicArray *array, size_t index, void *out_element) {
   return 0;
 }
 
-void* darray_get_pointer(const DynamicArray *array, size_t index) {
+void *darray_get_pointer(const DynamicArray *array, size_t index) {
   assert(array != NULL);
 
   if (index >= array->size)
     return NULL;
 
-  return (void*)((char *)array->data + (index * array->element_size));
+  return (void *)((char *)array->data + (index * array->element_size));
 }
 
 int darray_set(DynamicArray *array, size_t index, const void *element) {
