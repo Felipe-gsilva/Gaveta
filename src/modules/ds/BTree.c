@@ -64,7 +64,7 @@ static bool build_tree_from_data_file(BTree *b) {
   u16 rrn = 0;
   data_record *record = g_alloc(sizeof(data_record));
   record->data = g_alloc(b->config.schema_size);
-  record->k = g_alloc(sizeof(key));
+  record->k = g_alloc(sizeof(btree_key));
 
   while (fread(record->data, 1, b->config.schema_size, b->io.data->fp) ==
          b->config.schema_size) {
@@ -251,7 +251,7 @@ void b_update(BTree *b, GenericLinkedList *free_rrn,
 
 }
 
-static int search_in_btree_node(btree_node *p, key key, int *return_pos) {
+static int search_in_btree_node(btree_node *p, btree_key key, int *return_pos) {
   if (!p) {
     g_error(BTREE_ERROR, "Error: no btree_node");
     return BTREE_ERROR_INVALID_BTREE_NODE;
@@ -280,7 +280,7 @@ static int search_in_btree_node(btree_node *p, key key, int *return_pos) {
 }
 
 
-static u16 search_key(BTree *b, btree_node *p, key k, u16 *found_pos,
+static u16 search_key(BTree *b, btree_node *p, btree_key k, u16 *found_pos,
                btree_node **return_btree_node) {
   if (!p)
     return (u16)-1;
@@ -321,7 +321,7 @@ btree_node *b_search(BTree *b, const char *query_key, u16 *return_pos) {
   if (!b || !b->root || !query_key)
     return NULL;
 
-  key k;
+  btree_key k;
   sprintf((char *)k.id, "%s", query_key);
 
   btree_node *found_btree_node = NULL;
@@ -391,7 +391,7 @@ void b_range_search(BTree *b, key_range *range) {
 
 
 
-static void populate_key(key *k, data_record *d, u16 rrn) {
+static void populate_key(btree_key *k, data_record *d, u16 rrn) {
   if (!k || !d)
     return;
 
@@ -403,7 +403,7 @@ static void populate_key(key *k, data_record *d, u16 rrn) {
           k->data_register_rrn);
 }
 
-static btree_status insert_in_btree_node(btree_node *p, key k, btree_node *r_child, int pos) {
+static btree_status insert_in_btree_node(btree_node *p, btree_key k, btree_node *r_child, int pos) {
   if (!p)
     return BTREE_ERROR_INVALID_BTREE_NODE;
 
@@ -464,12 +464,12 @@ btree_status write_index_record(BTree *b, btree_node *p) {
   return BTREE_SUCCESS;
 }
 
-static btree_status split(BTree *b, btree_node *p, btree_node **r_child, key *promo_key,
-                     key *incoming_key, bool *promoted) {
+static btree_status split(BTree *b, btree_node *p, btree_node **r_child, btree_key *promo_key,
+                     btree_key *incoming_key, bool *promoted) {
   if (!b || !p || !r_child || !promo_key || !incoming_key)
     return BTREE_ERROR_INVALID_BTREE_NODE;
 
-  key temp_keys[b->config.order];
+  btree_key temp_keys[b->config.order];
   u16 temp_children[b->config.order + 1];
 
   memset(temp_keys, 0, sizeof(temp_keys));
@@ -572,7 +572,7 @@ static btree_status split(BTree *b, btree_node *p, btree_node **r_child, key *pr
   return BTREE_PROMOTION;
 }
 
-static btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
+static btree_status insert_key(BTree *b, btree_node *p, btree_key k, btree_key *promo_key,
                         btree_node **r_child, bool *promoted) {
   if (!b || !promo_key || !p)
     return BTREE_ERROR_INVALID_BTREE_NODE;
@@ -587,7 +587,7 @@ static btree_status insert_key(BTree *b, btree_node *p, key k, key *promo_key,
     if (!child)
       return BTREE_ERROR_IO;
 
-    key temp_key;
+    btree_key temp_key;
     btree_node *temp_child = NULL;
     status = insert_key(b, child, k, &temp_key, &temp_child, promoted);
 
@@ -627,7 +627,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
   if (!b || !b->io.data || !d)
     return BTREE_ERROR_INVALID_BTREE_NODE;
 
-  key new_key;
+  btree_key new_key;
   populate_key(&new_key, d, rrn);
 
   if (!b->root) {
@@ -650,7 +650,7 @@ btree_status b_insert(BTree *b, void *d, u16 rrn) {
     return write_index_record(b, b->root);
   }
 
-  key promo_key;
+  btree_key promo_key;
   btree_node *r_child = NULL;
   bool promoted = false;
 

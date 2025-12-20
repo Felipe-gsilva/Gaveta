@@ -16,15 +16,15 @@ bool set_envvar(const char *mode) {
 
 void init_app(void) {
   init_mem(MB * 16);
-  app.btrees = darray_create(sizeof(BTree *), 4);
+  app.btrees = darray_create(sizeof(BTree), 4);
   min_log_level = INFO;
 }
 
 void clear_app() {
   for (u32 i = 0; i < app.btrees->size; i++) {
-    BTree btree;
-    darray_get(app.btrees, i, &btree);
-    clear_btree(&btree);
+    BTree *btree;
+    btree = darray_get_pointer(app.btrees, i);
+    clear_btree(btree);
   }
   darray_destroy(app.btrees);
   clear_mem();
@@ -45,16 +45,14 @@ void cli() {
     } else if (strcmp(command, "list") == 0) {
       printf("Loaded BTrees:\n");
       for (u32 i = 0; i < app.btrees->size; i++) {
-        BTree *btree;
-        darray_get(app.btrees, i, btree);
+        BTree *btree = darray_get_pointer(app.btrees, i);
         printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
                btree->root ? btree->root->rrn : -1);
       }
     } else if (strcmp(command, "insert") ==0 || strcmp(command, "i") == 0) {
       printf("Choose your table:\n");
       for (u32 i = 0; i < app.btrees->size; i++) {
-        BTree *btree;
-        darray_get(app.btrees, i, btree);
+        BTree *btree = darray_get_pointer(app.btrees, i);
         printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
                btree->root ? btree->root->rrn : -1);
       }

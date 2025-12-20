@@ -23,27 +23,25 @@ typedef enum {
 #define BTREE_CACHE_DEFAULT_CAPACITY 128
 
 typedef struct __key {
-  u16 data_register_rrn;
   void *id;
   u32 key_size;
-} key;
+  u16 data_register_rrn;
+} btree_key;
 
 typedef struct __key_range {
-  key *start_id;
-  key *end_id;
+  btree_key *start_id;
+  btree_key *end_id;
 } key_range;
 
 typedef struct __btree_node {
-  key *keys;
+  btree_key *keys;
   u16 rrn, *children, next_leaf;
-  u8 child_num, keys_num, leaf;
-  // control bytes
-  byte dirty, pinned;
+  byte dirty, pinned, child_num, keys_num, leaf;
 } btree_node;
 
 typedef struct __data_record {
   void *data;
-  key *k;
+  btree_key *k;
 } data_record;
 
 typedef struct __io_buf {

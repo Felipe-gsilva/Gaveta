@@ -1,6 +1,7 @@
 #include "config.h"
 #include "../log/log.h"
 #include "../../App.h"
+#include "../schema/schema.h"
 
 extern App app;
 
@@ -24,6 +25,24 @@ static char* end_str(char *str) {
     }
   }
   return str;
+}
+
+bool read_schema(FILE *fp, btree_config *cfg, char *key, char *value) {
+  init_hash_table(&cfg->schema, sizeof(ColumnMetadata));
+  while(!feof(fp) || strstr(key, "}")) {
+    // read a line
+    fscanf(fp, " %[^:]: %s", key, value);
+    printf("Key: %s, Value: %s\n", key, value);
+    ColumnMetadata *cm = g_alloc(sizeof(ColumnMetadata));
+    // if value not in acceptable SchemaTypes, do not put and throw error
+    // TODO
+    if(!put_ht(&cfg->schema, key, cm)) {
+      g_error(HASH_TABLE_ERROR, "Could not insert %s into schema config", key);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool read_btree_config(const char *file_name, btree_config *cfg) {
@@ -56,9 +75,8 @@ bool read_btree_config(const char *file_name, btree_config *cfg) {
       sprintf(cfg->data_free_rrn_address, "%s", end_str(value + 1));
     else if (strstr(key, "schema_size"))
       cfg->schema_size = atoi(value);
-    else if (strstr(key, "schema_data"))
-      // not usable yet
-      cfg->schema = NULL;
+    else if (strstr(key, "schema"))
+        read_schema(fp, cfg, key, value);
     else if (strstr(key, "btree_name")) 
       sprintf(cfg->name, "%s", end_str(value + 1));
   };
