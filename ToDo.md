@@ -2,8 +2,8 @@
   - [X] GenericQueue
   - [X] GenericLinkedList
   - [ ] GenericStack
-  - [ ] GenericHashTable (with user given hash function)
-  - [ ] GenericDynamicArray (rewrite from previous project)
+  - [X] GenericHashTable (with user given hash function)
+  - [X] GenericDynamicArray (rewrite from previous project)
 - [ ] BTree+ Implementation/Refactor from the previous project
   - [X] Refactor to use Generic Data Structures
   - [ ] Export API to use BTree+
