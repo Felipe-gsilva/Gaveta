@@ -18,4 +18,7 @@ typedef struct {
     int max_length;
 } ColumnMetadata;
 
+// TODO
+char *create_str_cmd(ColumnMetadata* schema);
+
 #endif

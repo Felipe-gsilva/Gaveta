@@ -10,6 +10,7 @@
 #include "GenericLinkedList.h"
 #include "GenericDynamicArray.h"
 #include "../log/log.h"
+#include "./ds_utils.h"
 
 #define INITIAL_HT_SIZE 16
 #define DEFAULT_KEY_SIZE 32
@@ -44,8 +45,12 @@ void *lookup_ht(HashTable **ht, void *k, cmp_fn f);
 bool remove_ht(HashTable **ht, void *k, cmp_fn f);
 bool clear_ht(HashTable **ht);
 
+// TODO implement these
+char *get_ht_keys(HashTable **ht);
+bool print_ht(HashTable **ht, print_callback_fn f);
+
 // available default hash functions
-// any other hash functions must return a non-negative integer
+// any other hash functions must return a uint32_t
 u32 polynomial_rolling_hash_fn(char *key);
 u32 djb2(char *key);
 u32 murmur3_32(char *key);

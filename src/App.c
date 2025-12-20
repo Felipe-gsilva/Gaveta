@@ -51,13 +51,16 @@ void cli() {
       }
     } else if (strcmp(command, "insert") ==0 || strcmp(command, "i") == 0) {
       printf("Choose your table:\n");
+      int c = -1;
       for (u32 i = 0; i < app.btrees->size; i++) {
         BTree *btree = darray_get_pointer(app.btrees, i);
         printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
                btree->root ? btree->root->rrn : -1);
       }
-      
-
+      scanf("%d", &c);
+      BTree *btree = darray_get_pointer(app.btrees, c);
+      printf("  [%d] %s with root RRN: %d\n", c, btree->config.name,
+             btree->root ? btree->root->rrn : -1);
     } else if (strcmp(command, "clear") == 0) {
 #ifdef _WIN32
       system("cls");
