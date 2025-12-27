@@ -22,8 +22,7 @@ void init_app(void) {
 
 void clear_app() {
   for (u32 i = 0; i < app.btrees->size; i++) {
-    BTree *btree;
-    btree = darray_get_pointer(app.btrees, i);
+    BTree *btree = darray_get_pointer(app.btrees, i);
     clear_btree(btree);
   }
   darray_destroy(app.btrees);
@@ -49,18 +48,12 @@ void cli() {
         printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
                btree->root ? btree->root->rrn : -1);
       }
-    } else if (strcmp(command, "insert") ==0 || strcmp(command, "i") == 0) {
-      printf("Choose your table:\n");
-      int c = -1;
-      for (u32 i = 0; i < app.btrees->size; i++) {
-        BTree *btree = darray_get_pointer(app.btrees, i);
-        printf("  [%d] %s with root RRN: %d\n", i, btree->config.name,
-               btree->root ? btree->root->rrn : -1);
+    } else if (strstr(command, "insert")) {
+      if (strlen(command) < strlen("insert 0"))  {
+        printf("Error: use command ");
+        printf("insert [0 - %d] ...  - Insert 0 {data}\n", app.btrees->size - 1);
       }
-      scanf("%d", &c);
-      BTree *btree = darray_get_pointer(app.btrees, c);
-      printf("  [%d] %s with root RRN: %d\n", c, btree->config.name,
-             btree->root ? btree->root->rrn : -1);
+      continue;
     } else if (strcmp(command, "clear") == 0) {
 #ifdef _WIN32
       system("cls");
@@ -70,10 +63,11 @@ void cli() {
     } else if (strcmp(command, "help") == 0 || strcmp(command, "h") == 0 ||
                strcmp(command, "?") == 0) {
       printf("Available commands:\n");
-      printf("  list         - List all loaded BTrees\n");
-      printf("  help, h, ?   - Show this help message\n");
-      printf("  clear        - Clear the console screen\n");
-      printf("  exit, quit   - Exit the application\n");
+      printf("  list           - List all loaded BTrees\n");
+      printf("  help, h, ?     - Show this help message\n");
+      printf("  clear          - Clear the console screen\n");
+      printf("  exit, quit     - Exit the application\n");
+      printf("  insert [0 - %d] ...  - Insert 0 {data}\n", app.btrees->size - 1);
     } else {
       printf("Unknown command: %s\n", command);
     }

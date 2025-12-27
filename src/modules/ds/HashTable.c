@@ -127,6 +127,36 @@ void *lookup_ht(HashTable **ht, void *k, cmp_fn f) {
   return found_key->data;
 }
 
+// TODO
+char **get_ht_keys(HashTable **ht) {
+  if (!*ht) {
+    g_error(HASH_TABLE_ERROR, "Hash Table is not initialized! Stop getting its keys!");
+    return NULL;
+  }
+
+  int n = darray_size((*ht)->bucket_heads), m = (*ht)->max_key_size;
+  char **keys;
+  keys = g_alloc(n);
+
+  for (int i = 0; i < n; i++) {
+    keys[i] = g_alloc(m);
+    GenericLinkedList *gl = darray_get_pointer((*ht)->bucket_heads, i);
+    if (!gl) {
+      g_crit_error(HASH_TABLE_ERROR, "Bad bucket heads while searching!")
+    }
+
+    for (int j = 0; j < get_ll_size(&gl); j++) {
+      bucket *b = (bucket*)gl->data;
+      strncpy(keys[i], b->key, m);
+      gl = gl->next;
+    }
+  }
+
+  return keys;
+}
+
+
+// ---------- HASH FUNCTIONS ----------
 u32 polynomial_rolling_hash_fn(char *key) {
   int n = strlen(key);
   int p = 31, m = 1e9 + 7;

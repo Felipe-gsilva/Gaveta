@@ -63,14 +63,7 @@ void g_log(log_level level, status_code status, const char *str, ...) {
       printf("%d - Invalid Input | ", status);
       break;
     case 7: 
-      printf("%d - Queue status | ", status);
-      break;
-    case 8:
-      printf("%d - Linked List Status | ", status);
-      break;
-      
-    case 9: 
-      printf("%d - Hash Table Status | ", status);
+      printf("%d - Internal DS Status | ", status);
       break;
     default:
       printf("%d - Unknown Status | ", status);

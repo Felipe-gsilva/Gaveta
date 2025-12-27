@@ -36,6 +36,7 @@ typedef struct __HashTable {
 
 #define Map HashTable
 #define HashMap HashTable
+#define print_ht_node_fn print_callback_fn
 
 #define init_hash_table(ht, data_size) init_ht(ht, data_size, DEFAULT_KEY_SIZE, murmur3_32)
 
@@ -44,9 +45,8 @@ bool put_ht(HashTable **ht, char *key, void *data);
 void *lookup_ht(HashTable **ht, void *k, cmp_fn f);
 bool remove_ht(HashTable **ht, void *k, cmp_fn f);
 bool clear_ht(HashTable **ht);
-
+char **get_ht_keys(HashTable **ht);
 // TODO implement these
-char *get_ht_keys(HashTable **ht);
 bool print_ht(HashTable **ht, print_callback_fn f);
 
 // available default hash functions

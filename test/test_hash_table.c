@@ -31,6 +31,15 @@ static bool test_homogeneous_ds() {
   put_ht(&ht, key1, &val1);
   put_ht(&ht, key2, &val2);
 
+  char **keys = get_ht_keys(&ht);
+  assert(keys);
+  for (int i = 0; i < darray_size(ht->bucket_heads); i++) {
+    if (i == 0)
+      assert(strcmp(keys[i], key1));
+    if (i == 1)
+      assert(strcmp(keys[i], key2));
+  }
+
   int *result = lookup_ht(&ht, key1, cmp_str_keys);
   
   if (!result) {

@@ -3,7 +3,6 @@
 bool test_generic_linkedlist() {
   GenericLinkedList *ll;
   init_ll(&ll, sizeof(int));
-
   assert(is_ll_empty(&ll) == true);
 
   int val1 = 10;

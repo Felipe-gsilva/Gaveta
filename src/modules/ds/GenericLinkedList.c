@@ -70,7 +70,7 @@ bool is_ll_empty(GenericLinkedList **ll) {
 
 bool clear_ll(GenericLinkedList **ll) {
   if (!ll || !*ll) {
-    g_warn(LIST_STATUS, "trying to dealocate a non allocated LinkedList!");
+    g_warn(LIST_STATUS, "Trying to dealocate a non allocated LinkedList!");
     return false;
   }
 
